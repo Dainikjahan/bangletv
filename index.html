@@ -3,6 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // In accordance with environment constraints (HMR disabled in AI Studio preview iframe),
+      // ignore Vite WebSocket connection and unhandled close rejections.
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        var msg = reason && (reason.message || String(reason));
+        var stack = reason && (reason.stack || '');
+        if (
+          (typeof msg === 'string' && (msg.includes('WebSocket') || msg.includes('ws:'))) ||
+          (typeof stack === 'string' && (stack.includes('@vite/client') || stack.includes('client.mjs')))
+        ) {
+          event.preventDefault();
+        }
+      });
+      window.addEventListener('error', function (event) {
+        var msg = event.message || '';
+        var filename = event.filename || '';
+        if (
+          (typeof msg === 'string' && msg.includes('WebSocket')) ||
+          (typeof filename === 'string' && (filename.includes('@vite/client') || filename.includes('client.mjs')))
+        ) {
+          event.preventDefault();
+        }
+      });
+    </script>
     <title>Open IPTV Federation &amp; Bengal TV</title>
     <meta
       name="description"

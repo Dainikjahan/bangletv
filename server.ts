@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import http from 'node:http';
 import express from 'express';
 import type { Request, Response } from 'express';
 import fs from 'node:fs';
@@ -61,6 +62,7 @@ function isSafeExternalM3uUrl(rawUrl: string): boolean {
 
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
 
   // Serve uploaded community/journalist videos
   app.use('/uploads', express.static(UPLOADS_DIR));
@@ -305,7 +307,12 @@ Video Source: "${String(sourceUrl).trim()}"`;
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: {
+          server: httpServer,
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -317,7 +324,7 @@ Video Source: "${String(sourceUrl).trim()}"`;
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Bengal TV Broadcast Server running on http://0.0.0.0:${PORT}`);
   });
 }
