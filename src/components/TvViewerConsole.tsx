@@ -1,17 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
-  Tv, Radio, Clock, ChevronUp, ChevronDown, ListFilter,
-  ShieldCheck, Search, Info, HelpCircle, Layers,
-  Compass, ArrowLeft, ArrowRight, Star, RotateCcw, RotateCw,
-  FastForward, Rewind, Lock, Settings, Database, HardDrive,
-  AlertTriangle, CheckCircle2, History, Smartphone, Monitor,
-  RefreshCw, PlayCircle, Globe
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Tv,
+  Radio,
+  ChevronUp,
+  ChevronDown,
+  ListFilter,
+  Search,
+  Layers,
+  Star,
+  RotateCcw,
+  RotateCw,
+  Lock,
+  History,
+  Monitor,
+  Globe,
+  Upload,
+  ShieldCheck,
 } from 'lucide-react';
-import { BroadcastItem, ContentCategory, TimeshiftPolicy } from '../types/broadcast';
+import { BroadcastItem, TimeshiftPolicy } from '../types/broadcast';
 import UniversalVideoPlayer from './UniversalVideoPlayer';
 import BreakingNewsTicker from './BreakingNewsTicker';
 import { InMemoryTimeshiftDvr, TimeshiftBufferState } from '../utils/timeshiftBuffer';
+import { BENGAL_TV_OFFICIAL_LOGO } from '../data/iptvChannels';
 
 interface TvViewerConsoleProps {
   channels: BroadcastItem[];
@@ -19,21 +33,48 @@ interface TvViewerConsoleProps {
   onSelectChannel: (channel: BroadcastItem) => void;
   onOpenEpgModal: () => void;
   onOpenM3uModal: () => void;
+  onOpenUploadStudio: () => void;
   onOpenGovernanceModal: () => void;
 }
 
-const CATEGORY_TABS = [
-  { id: 'ALL', label: 'সব চ্যানেল (All)' },
-  { id: 'FAVORITES', label: '★ প্রিয় চ্যানেল (Favorites)' },
-  { id: 'ENTERTAINMENT', label: 'নাটক ও সিরিয়াল (Drama)' },
-  { id: 'NEWS', label: 'খবর ও লাইভ বুলেটিন (News)' },
-  { id: 'CARTOONS', label: 'বাচ্চাদের কার্টুন (Kids)' },
-  { id: 'SPORTS', label: 'খেলাধুলা ও ক্রিকেট (Sports)' },
-  { id: 'COOKING', label: 'রান্না ও রেসিপি (Cooking)' },
-  { id: 'MUSIC', label: 'গান ও মিউজিক (Music)' },
-  { id: 'SPIRITUAL', label: 'ধর্ম ও শান্তি (Spiritual)' },
-  { id: 'DOCUMENTARY', label: 'বিজ্ঞান ও বিশ্ব (Science)' },
+const EDITORIAL_TABS = [
+  { id: 'ALL', label: 'All Broadcasts' },
+  { id: 'BENGALI', label: 'Bengali News & Diaspora' },
+  { id: 'AMERICAS', label: 'American News' },
+  { id: 'EUROPE', label: 'European & Global News' },
+  { id: 'DOCUMENTARY', label: 'Humanitarian & Mankind Docs' },
+  { id: 'CITIZEN', label: 'Citizen Uploads' },
+  { id: 'FAVORITES', label: 'Saved' },
 ];
+
+function ChannelLogoAvatar({
+  logoUrl,
+  isActive,
+}: {
+  logoUrl?: string;
+  isActive: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (!logoUrl || failed) {
+    return (
+      <Tv
+        size={16}
+        className={isActive ? 'text-[#0066CC]' : 'text-[#6E6E73]'}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={logoUrl}
+      alt=""
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className="w-full h-full object-contain p-0.5"
+    />
+  );
+}
 
 export default function TvViewerConsole({
   channels,
@@ -41,12 +82,11 @@ export default function TvViewerConsole({
   onSelectChannel,
   onOpenEpgModal,
   onOpenM3uModal,
-  onOpenGovernanceModal,
+  onOpenUploadStudio,
 }: TvViewerConsoleProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dvrRef = useRef<InMemoryTimeshiftDvr | null>(null);
 
-  // Playback & Audio State (Default muted for 100% mobile browser autoplay compliance)
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -55,30 +95,27 @@ export default function TvViewerConsole({
   const [drawerLimit, setDrawerLimit] = useState<number>(80);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
-  const [showPolicyNotice, setShowPolicyNotice] = useState<boolean>(false);
 
-  // Reset drawer channel slice when searching or changing category
   useEffect(() => {
     setDrawerLimit(80);
   }, [searchQuery, selectedCategory, isDrawerOpen]);
 
-  // Pinned Favorites persisted in LocalStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('open_iptv_favorites');
-      return saved ? JSON.parse(saved) : ['ch-channel-i', 'ch-duronto-kids-hd', 'ch-somoy-tv', 'ch-banglar-darpan'];
+      const saved = localStorage.getItem('bengaltv_saved_channels_v1');
+      return saved
+        ? JSON.parse(saved)
+        : ['ch-bengal-tv-flagship', 'ch-somoy-tv', 'ch-abp-ananda', 'ch-dw-documentary'];
     } catch {
-      return ['ch-channel-i', 'ch-duronto-kids-hd'];
+      return ['ch-bengal-tv-flagship', 'ch-somoy-tv'];
     }
   });
 
-  // Timeshift DVR Engine State (Real In-Memory Buffer in RAM)
   const timeshiftPolicy: TimeshiftPolicy = activeChannel.timeshiftPolicy || {
     allowed: true,
     maxBufferMinutes: 60,
     storagePolicy: 'IN_MEMORY_EPHEMERAL',
-    rightsHolderAttribution: 'Standard Community Broadcast License',
+    rightsHolderAttribution: 'Bengal TV Broadcast Charter',
   };
 
   const [dvrState, setDvrState] = useState<TimeshiftBufferState>({
@@ -89,10 +126,10 @@ export default function TvViewerConsole({
     timeshiftOffsetSec: 0,
     maxBufferSec: (timeshiftPolicy.maxBufferMinutes || 60) * 60,
     isAllowed: timeshiftPolicy.allowed,
-    rightsAttribution: timeshiftPolicy.rightsHolderAttribution || 'Standard Community Broadcast License',
+    rightsAttribution:
+      timeshiftPolicy.rightsHolderAttribution || 'Bengal TV Broadcast Charter',
   });
 
-  // Initialize and update In-Memory DVR when active channel changes
   useEffect(() => {
     if (!dvrRef.current) {
       dvrRef.current = new InMemoryTimeshiftDvr(
@@ -120,9 +157,13 @@ export default function TvViewerConsole({
     return () => {
       unsubscribe();
     };
-  }, [activeChannel.id, timeshiftPolicy.allowed, timeshiftPolicy.maxBufferMinutes, timeshiftPolicy.rightsHolderAttribution]);
+  }, [
+    activeChannel.id,
+    timeshiftPolicy.allowed,
+    timeshiftPolicy.maxBufferMinutes,
+    timeshiftPolicy.rightsHolderAttribution,
+  ]);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (dvrRef.current) {
@@ -132,7 +173,6 @@ export default function TvViewerConsole({
     };
   }, []);
 
-  // Format seconds to MM:SS or HH:MM:SS
   const formatOffset = (secs: number) => {
     if (secs <= 0) return '00:00';
     const mins = Math.floor(secs / 60);
@@ -140,7 +180,6 @@ export default function TvViewerConsole({
     return `${mins.toString().padStart(2, '0')}:${remainingSecs.toString().padStart(2, '0')}`;
   };
 
-  // Automatic first-interaction audio unmute (Hands-free auto-play experience)
   useEffect(() => {
     const handleFirstGesture = () => {
       setIsMuted(false);
@@ -160,20 +199,19 @@ export default function TvViewerConsole({
     };
   }, []);
 
-  // Auto-scroll active channel in thumb strip into view
   const activeStripRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (activeStripRef.current) {
-      activeStripRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      activeStripRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
     }
   }, [activeChannel.id]);
 
-  // DVR Handlers (Rewind, Forward, Seek, Live Sync, Pause)
   const handleRewind = (seconds: number) => {
-    if (!dvrState.isAllowed) {
-      setShowPolicyNotice(true);
-      return;
-    }
+    if (!dvrState.isAllowed) return;
     dvrRef.current?.rewind(seconds);
   };
 
@@ -200,18 +238,35 @@ export default function TvViewerConsole({
     setIsMuted((prev) => !prev);
   };
 
-  // Channel switching helper (Delta +/- 1)
-  const switchChannelByDelta = useCallback((delta: number) => {
-    const currentIndex = channels.findIndex((c) => c.id === activeChannel.id);
-    if (currentIndex === -1) return;
-    const nextIndex = (currentIndex + delta + channels.length) % channels.length;
-    onSelectChannel(channels[nextIndex]);
-  }, [channels, activeChannel, onSelectChannel]);
+  const switchChannelByDelta = useCallback(
+    (delta: number) => {
+      const currentIndex = channels.findIndex((c) => c.id === activeChannel.id);
+      if (currentIndex === -1) return;
+      const nextIndex = (currentIndex + delta + channels.length) % channels.length;
+      onSelectChannel(channels[nextIndex]);
+    },
+    [channels, activeChannel, onSelectChannel]
+  );
 
-  // Keyboard navigation shortcuts for 10-foot remote / PC
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {});
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => {});
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+        return;
 
       switch (e.key) {
         case ' ':
@@ -258,22 +313,10 @@ export default function TvViewerConsole({
           e.preventDefault();
           setIsDrawerOpen((prev) => !prev);
           break;
-        case '?':
-          setShowShortcutsHelp((prev) => !prev);
-          break;
         case 'Escape':
           setIsDrawerOpen(false);
-          setShowShortcutsHelp(false);
-          setShowPolicyNotice(false);
           break;
         default:
-          if (/^[1-9]$/.test(e.key)) {
-            const num = parseInt(e.key, 10);
-            const targetChannel = channels.find((c) => (c.channelNumber % 10) === num || String(c.channelNumber).endsWith(e.key));
-            if (targetChannel) {
-              onSelectChannel(targetChannel);
-            }
-          }
           break;
       }
     };
@@ -282,136 +325,183 @@ export default function TvViewerConsole({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [switchChannelByDelta, onOpenEpgModal, isPlaying, dvrState.isAllowed]);
 
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
-    }
-  };
-
   const toggleFavorite = (channelId: string) => {
     setFavorites((prev) => {
-      const next = prev.includes(channelId) ? prev.filter((id) => id !== channelId) : [...prev, channelId];
+      const next = prev.includes(channelId)
+        ? prev.filter((id) => id !== channelId)
+        : [...prev, channelId];
       try {
-        localStorage.setItem('open_iptv_favorites', JSON.stringify(next));
+        localStorage.setItem('bengaltv_saved_channels_v1', JSON.stringify(next));
       } catch {}
       return next;
     });
   };
 
-  // Filter channels based on selected category and query
-  const filteredChannels = channels.filter((c) => {
-    let matchesCat = false;
-    if (selectedCategory === 'ALL') {
-      matchesCat = true;
-    } else if (selectedCategory === 'FAVORITES') {
-      matchesCat = favorites.includes(c.id);
-    } else if (selectedCategory === 'NEWS') {
-      matchesCat = c.category === 'NEWS' || c.category === 'LIVE_NEWS';
-    } else if (selectedCategory === 'CARTOONS') {
-      matchesCat = c.category === 'CARTOONS' || c.category === 'CHILDREN';
-    } else if (selectedCategory === 'COOKING') {
-      matchesCat = c.category === 'COOKING' || c.category === 'CULTURE';
-    } else if (selectedCategory === 'SPIRITUAL') {
-      matchesCat = c.category === 'SPIRITUAL' || c.category === 'RELIGION';
-    } else {
-      matchesCat = c.category === selectedCategory;
+  const matchesEditorialTab = (c: BroadcastItem, tab: string): boolean => {
+    if (tab === 'ALL') return true;
+    if (tab === 'FAVORITES') return favorites.includes(c.id);
+
+    const lang = (c.classificationTaxonomy?.language || '').toLowerCase();
+    const country = (c.classificationTaxonomy?.country || c.location || '').toLowerCase();
+    const region = (c.classificationTaxonomy?.region || '').toLowerCase();
+    const titleLower = c.title.toLowerCase();
+
+    if (tab === 'BENGALI') {
+      return (
+        lang.includes('bengali') ||
+        region.includes('bengal') ||
+        country.includes('bangladesh') ||
+        country.includes('west bengal') ||
+        /[\u0980-\u09FF]/.test(c.title) ||
+        titleLower.includes('bangla') ||
+        titleLower.includes('bengal') ||
+        c.id === 'ch-bengal-tv-flagship'
+      );
     }
 
-    const matchesSearch = !searchQuery.trim() || 
-                          c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (c.location && c.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (c.categoryLabel && c.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          String(c.channelNumber || '').includes(searchQuery);
+    if (tab === 'AMERICAS') {
+      return (
+        country.includes('united states') ||
+        country.includes('usa') ||
+        region.includes('america') ||
+        (c.location || '').toLowerCase().includes('new york') ||
+        (c.location || '').toLowerCase().includes('washington')
+      );
+    }
+
+    if (tab === 'EUROPE') {
+      return (
+        region.includes('europe') ||
+        country.includes('united kingdom') ||
+        country.includes('germany') ||
+        country.includes('france') ||
+        country.includes('europe') ||
+        country.includes('qatar') ||
+        country.includes('turkey') ||
+        (c.location || '').toLowerCase().includes('london') ||
+        (c.location || '').toLowerCase().includes('berlin') ||
+        (c.location || '').toLowerCase().includes('paris')
+      );
+    }
+
+    if (tab === 'DOCUMENTARY') {
+      return (
+        c.category === 'DOCUMENTARY' ||
+        c.category === 'SCIENCE' ||
+        c.category === 'EDUCATION' ||
+        c.category === 'PUBLIC_SERVICE'
+      );
+    }
+
+    if (tab === 'CITIZEN') {
+      return (
+        c.id.startsWith('bc-') ||
+        c.category === 'COMMUNITY' ||
+        c.classificationTaxonomy?.editorialClass === 'COMMUNITY_DISPATCH'
+      );
+    }
+
+    return true;
+  };
+
+  const filteredChannels = channels.filter((c) => {
+    const matchesCat = matchesEditorialTab(c, selectedCategory);
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      c.title.toLowerCase().includes(q) ||
+      (c.location && c.location.toLowerCase().includes(q)) ||
+      (c.categoryLabel && c.categoryLabel.toLowerCase().includes(q)) ||
+      String(c.channelNumber || '').includes(q);
     return matchesCat && matchesSearch;
   });
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={`relative w-full bg-[#141720] text-[#f2eee9] flex flex-col select-none overflow-x-hidden ${
-        isFullscreen ? 'h-screen w-screen' : 'min-h-[calc(100vh-64px)]'
+      className={`relative w-full bg-[#F5F5F7] text-[#1D1D1F] flex flex-col select-none overflow-x-hidden ${
+        isFullscreen ? 'h-screen w-screen' : 'min-h-[calc(100vh-60px)]'
       }`}
     >
-      {/* ============================================================== */}
-      {/* 1. UNIVERSAL RESILIENT VIDEO PLAYER (MOBILE-FIRST 16:9 VIEW)    */}
-      {/* ============================================================== */}
-      <div className={`relative w-full ${aspectRatio === '16:9' ? 'aspect-video' : 'aspect-[4/3]'} md:flex-1 md:aspect-auto md:min-h-[460px] max-h-[75vh] bg-black flex items-center justify-center overflow-hidden shrink-0 shadow-2xl transition-all`}>
-        <UniversalVideoPlayer
-          channel={activeChannel}
-          isMuted={isMuted}
-          isPlaying={isPlaying}
-          timeshiftOffset={dvrState.timeshiftOffsetSec}
-          maxBufferSeconds={dvrState.maxBufferSec}
-          isTimeshiftAllowed={dvrState.isAllowed}
-          onTogglePlayPause={handleTogglePlayPause}
-          onToggleMute={handleToggleMute}
-          onRewind={handleRewind}
-          onForward={handleForward}
-          onJumpToLive={handleJumpToLive}
-          onSwitchChannel={switchChannelByDelta}
-          onFullscreenToggle={toggleFullscreen}
-          isFullscreen={isFullscreen}
-        />
+      {/* 1. Broadcast Video Stage */}
+      <div className="w-full bg-[#E8E8ED] border-b border-[#E5E5EA] flex justify-center">
+        <div
+          className={`relative w-full ${
+            aspectRatio === '16:9'
+              ? 'aspect-video max-w-[1440px]'
+              : 'aspect-[4/3] max-w-[1040px]'
+          } max-h-[70vh] bg-[#0A0A0C] flex items-center justify-center overflow-hidden transition-all duration-200`}
+        >
+          <UniversalVideoPlayer
+            channel={activeChannel}
+            isMuted={isMuted}
+            isPlaying={isPlaying}
+            timeshiftOffset={dvrState.timeshiftOffsetSec}
+            maxBufferSeconds={dvrState.maxBufferSec}
+            isTimeshiftAllowed={dvrState.isAllowed}
+            onTogglePlayPause={handleTogglePlayPause}
+            onToggleMute={handleToggleMute}
+            onRewind={handleRewind}
+            onForward={handleForward}
+            onJumpToLive={handleJumpToLive}
+            onSwitchChannel={switchChannelByDelta}
+            onFullscreenToggle={toggleFullscreen}
+            isFullscreen={isFullscreen}
+          />
+        </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 1B. LIVE BREAKING NEWS BROADCAST TICKER                        */}
-      {/* ============================================================== */}
+      {/* 2. Live Breaking News Wire */}
       <BreakingNewsTicker />
 
-      {/* ============================================================== */}
-      {/* 2. IN-MEMORY DVR TIMESHIFT BUFFER BAR & TRANSPORT CONTROLS     */}
-      {/* ============================================================== */}
-      <div className="bg-[#191d28] border-b border-[#2a2f40] px-3 sm:px-4 py-2.5 flex flex-col gap-2">
-        {/* Scrubber Status & Memory Indicator Row */}
-        <div className="flex items-center justify-between text-xs font-mono gap-2">
-          <div className="flex items-center gap-1.5 text-slate-300 truncate">
-            {dvrState.timeshiftOffsetSec === 0 ? (
-              <span className="flex items-center gap-1 text-red-500 font-bold shrink-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-                <span>LIVE</span>
+      {/* 3. Studio Transport & In-Memory DVR Bar */}
+      <div className="bg-white border-b border-[#E5E5EA] px-4 sm:px-8 py-3 flex flex-col gap-2.5">
+        <div className="max-w-7xl w-full mx-auto flex flex-col gap-2.5">
+          {/* Status Row */}
+          <div className="flex items-center justify-between text-xs gap-3">
+            <div className="flex items-center gap-2 text-[#6E6E73] truncate">
+              {dvrState.timeshiftOffsetSec === 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-[#D70015] font-bold shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-[#D70015] animate-live-pulse" />
+                  <span>LIVE</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[#0066CC] font-semibold font-mono tabular-nums shrink-0">
+                  <History size={13} />
+                  <span>DVR -{formatOffset(dvrState.timeshiftOffsetSec)}</span>
+                </span>
+              )}
+              <span className="text-[#D2D2D7]">·</span>
+              <span className="font-bold text-[#1D1D1F] truncate text-xs sm:text-sm">
+                {activeChannel.title}
               </span>
-            ) : (
-              <span className="flex items-center gap-1 text-amber-400 font-bold shrink-0 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30">
-                <History size={12} />
-                <span>DVR -{formatOffset(dvrState.timeshiftOffsetSec)}</span>
+              <span className="text-[#D2D2D7] hidden sm:inline">·</span>
+              <span className="text-[#6E6E73] shrink-0 text-xs hidden sm:inline">
+                {activeChannel.categoryLabel}
               </span>
-            )}
-            <span className="text-slate-600">|</span>
-            <span className="font-bold text-white truncate text-xs sm:text-sm">{activeChannel.title}</span>
-            <span className="text-slate-500 hidden sm:inline">·</span>
-            <span className="text-[#fbbf24] shrink-0 text-[11px] sm:text-xs hidden sm:inline">{activeChannel.categoryLabel}</span>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 bg-slate-900 border border-white/10 rounded text-[10px] text-amber-300 font-mono">
-              <Tv size={11} className="text-amber-400" />
-              <span>চ্যানেল {activeChannel.channelNumber || '০১'}</span>
             </div>
 
-            {dvrState.timeshiftOffsetSec > 0 ? (
-              <button
-                onClick={handleJumpToLive}
-                className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-[10px] flex items-center gap-1 shrink-0 animate-pulse cursor-pointer shadow-lg"
-              >
-                <Radio size={11} />
-                <span>লাইভ সিঙ্ক</span>
-              </button>
-            ) : (
-              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
-                ● লাইভ সম্প্রচার
+            <div className="flex items-center gap-3 shrink-0 text-xs">
+              <span className="hidden md:inline font-mono tabular-nums text-[#6E6E73]">
+                CH {activeChannel.channelNumber || '100'} · {activeChannel.location}
               </span>
-            )}
-          </div>
-        </div>
 
-        {/* Timeshift Scrub Bar (Visual Buffer Timeline) */}
-        {dvrState.isAllowed ? (
-          <div className="relative flex flex-col gap-1 pt-0.5">
-            <div className="relative w-full flex items-center">
+              {dvrState.timeshiftOffsetSec > 0 && (
+                <button
+                  type="button"
+                  onClick={handleJumpToLive}
+                  className="px-2.5 py-1 bg-[#D70015] hover:bg-[#B80012] text-white font-semibold rounded-lg text-[11px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap"
+                >
+                  <Radio size={11} />
+                  <span>Return to Live</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Timeshift Scrubber */}
+          {dvrState.isAllowed ? (
+            <div className="flex flex-col gap-1">
               <input
                 type="range"
                 min="0"
@@ -423,331 +513,392 @@ export default function TvViewerConsole({
                   const newOffset = Math.max(0, dvrState.bufferDurationSec - targetProgress);
                   dvrRef.current?.seekOffset(newOffset);
                 }}
-                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#d4af37]"
-                title="Drag to rewind live stream from memory buffer"
+                className="w-full h-1.5 bg-[#E5E5EA] rounded-lg appearance-none cursor-pointer accent-[#0066CC]"
+                title="Scrub live broadcast buffer"
               />
+              <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-[#86868B]">
+                <span>-{formatOffset(dvrState.bufferDurationSec)} buffer</span>
+                <span className="text-[#6E6E73] font-medium">
+                  {dvrState.timeshiftOffsetSec === 0
+                    ? 'Synchronized with live broadcast'
+                    : `Timeshift offset -${formatOffset(dvrState.timeshiftOffsetSec)}`}
+                </span>
+                <span>LIVE</span>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 px-0.5">
-              <span>-{formatOffset(dvrState.bufferDurationSec)} (বাফার শুরু)</span>
-              <span className="text-amber-300 font-bold">
-                {dvrState.timeshiftOffsetSec === 0 ? 'লাইভ সম্প্রচার প্রান্ত' : `বর্তমান অবস্থান: -${formatOffset(dvrState.timeshiftOffsetSec)}`}
-              </span>
-              <span>LIVE (এখন)</span>
+          ) : (
+            <div className="text-[11px] text-[#6E6E73] flex items-center gap-1.5">
+              <Lock size={12} />
+              <span>Timeshift buffer disabled by broadcaster policy.</span>
+            </div>
+          )}
+
+          {/* Clean Apple Transport Control Strip */}
+          <div className="flex items-center justify-between gap-1.5 pt-0.5 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => switchChannelByDelta(-1)}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                title="Previous Channel"
+              >
+                <ChevronUp size={15} />
+                <span>CH -</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchChannelByDelta(1)}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                title="Next Channel"
+              >
+                <span>CH +</span>
+                <ChevronDown size={15} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleRewind(10)}
+                disabled={!dvrState.isAllowed}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] disabled:opacity-40 border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-medium text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              >
+                <RotateCcw size={14} />
+                <span>-10s</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTogglePlayPause}
+                className="py-2 px-5 bg-[#1D1D1F] hover:bg-[#333336] text-white font-semibold rounded-xl flex items-center justify-center cursor-pointer transition-colors"
+                title="Play / Pause"
+              >
+                {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-white" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleForward(10)}
+                disabled={!dvrState.isAllowed || dvrState.timeshiftOffsetSec === 0}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] disabled:opacity-40 border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-medium text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              >
+                <RotateCw size={14} />
+                <span>+10s</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Aspect Ratio Toggle (16:9 / 4:3) */}
+              <button
+                type="button"
+                onClick={() => setAspectRatio((prev) => (prev === '16:9' ? '4:3' : '16:9'))}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-semibold text-[#1D1D1F] flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                title="Toggle Aspect Ratio (16:9 / 4:3)"
+              >
+                <Monitor size={14} className="text-[#0066CC]" />
+                <span>{aspectRatio}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleMute}
+                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-[#1D1D1F] flex items-center justify-center cursor-pointer"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? (
+                  <VolumeX size={16} className="text-[#D70015]" />
+                ) : (
+                  <Volume2 size={16} className="text-[#1F7A3F]" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+                className={`py-2 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  isDrawerOpen
+                    ? 'bg-[#0066CC] text-white'
+                    : 'bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F]'
+                }`}
+                title="Open Full Channel Directory"
+              >
+                <ListFilter size={15} />
+                <span className="hidden sm:inline">All Channels</span>
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="p-1.5 bg-amber-950/20 border border-amber-500/20 rounded-lg text-[10px] font-mono text-amber-300 flex items-center gap-1.5">
-            <Lock size={12} />
-            <span>সম্প্রচার স্বত্বাধিকারী অনুমতি: এই চ্যানেলের জন্য টাইমশিফ্ট বাফার সংরক্ষিত।</span>
-          </div>
-        )}
-
-        {/* Mobile Touch Action Button Row (Minimum 44px Touch Targets) */}
-        <div className="flex items-center justify-between gap-1.5 pt-1 overflow-x-auto no-scrollbar">
-          {/* Channel Prev */}
-          <button
-            onClick={() => switchChannelByDelta(-1)}
-            className="flex-1 min-w-[50px] py-2.5 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1 cursor-pointer"
-            title="Previous Channel (CH -)"
-          >
-            <ChevronUp size={16} />
-            <span className="text-[11px]">CH -</span>
-          </button>
-
-          {/* Rewind 30s */}
-          <button
-            onClick={() => handleRewind(30)}
-            disabled={!dvrState.isAllowed}
-            className="hidden sm:flex py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 disabled:opacity-40 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 items-center justify-center gap-1 cursor-pointer"
-            title="Rewind 30s"
-          >
-            <RotateCcw size={14} />
-            <span className="text-[11px]">-30s</span>
-          </button>
-
-          {/* Rewind 10s */}
-          <button
-            onClick={() => handleRewind(10)}
-            disabled={!dvrState.isAllowed}
-            className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 disabled:opacity-40 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1 cursor-pointer"
-            title="Rewind 10s"
-          >
-            <RotateCcw size={15} />
-            <span className="text-[11px]">-10s</span>
-          </button>
-
-          {/* Play/Pause */}
-          <button
-            onClick={handleTogglePlayPause}
-            className="py-2.5 px-5 bg-gradient-to-r from-[#d4af37] to-[#fbbf24] text-black font-extrabold rounded-xl shadow-lg flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-            title="Play/Pause"
-          >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} className="fill-black" />}
-          </button>
-
-          {/* Forward 10s */}
-          <button
-            onClick={() => handleForward(10)}
-            disabled={!dvrState.isAllowed || dvrState.timeshiftOffsetSec === 0}
-            className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 disabled:opacity-40 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1 cursor-pointer"
-            title="Forward 10s"
-          >
-            <RotateCw size={15} />
-            <span className="text-[11px]">+10s</span>
-          </button>
-
-          {/* Forward 30s */}
-          <button
-            onClick={() => handleForward(30)}
-            disabled={!dvrState.isAllowed || dvrState.timeshiftOffsetSec === 0}
-            className="hidden sm:flex py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 disabled:opacity-40 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 items-center justify-center gap-1 cursor-pointer"
-            title="Forward 30s"
-          >
-            <RotateCw size={14} />
-            <span className="text-[11px]">+30s</span>
-          </button>
-
-          {/* Channel Next */}
-          <button
-            onClick={() => switchChannelByDelta(1)}
-            className="flex-1 min-w-[50px] py-2.5 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1 cursor-pointer"
-            title="Next Channel (CH +)"
-          >
-            <span className="text-[11px]">CH +</span>
-            <ChevronDown size={16} />
-          </button>
-
-          {/* Aspect Ratio Toggle (16:9 / 4:3) */}
-          <button
-            onClick={() => setAspectRatio(prev => prev === '16:9' ? '4:3' : '16:9')}
-            className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 border border-slate-700/60 rounded-xl text-xs font-mono font-bold text-amber-300 flex items-center justify-center gap-1 cursor-pointer"
-            title="Toggle Aspect Ratio (16:9 / 4:3)"
-          >
-            <Monitor size={14} />
-            <span className="text-[11px]">{aspectRatio}</span>
-          </button>
-
-          {/* Mute/Unmute */}
-          <button
-            onClick={handleToggleMute}
-            className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 active:bg-slate-700 border border-slate-700/60 rounded-xl text-slate-200 flex items-center justify-center cursor-pointer"
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <VolumeX size={16} className="text-red-400" /> : <Volume2 size={16} className="text-emerald-400" />}
-          </button>
-
-          {/* Channel Drawer Toggle */}
-          <button
-            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-            className={`py-2.5 px-3.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer ${
-              isDrawerOpen 
-                ? 'bg-[#d4af37] text-black font-extrabold' 
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700/60 text-slate-200'
-            }`}
-            title="All Channels"
-          >
-            <ListFilter size={16} />
-          </button>
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 3. MOBILE THUMB-FRIENDLY CHANNEL STRIP & CATEGORY FILTER       */}
-      {/* ============================================================== */}
-      <div className="flex-1 bg-[#141720] p-3 sm:p-4 space-y-3.5">
-        {/* IPTV-org Master Hub Banner */}
-        <div className="bg-[#191d28] border border-[#2a2f40] rounded-2xl p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#996515] to-[#fbbf24] flex items-center justify-center text-black font-bold shrink-0">
-              <Globe size={18} />
+      {/* 4. Editorial Directory & Regional Filter Workspace */}
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
+        {/* Segmented Regional & Editorial Filter Bar + Search */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-[#EFEFF4] p-1 rounded-xl">
+            {EDITORIAL_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSelectedCategory(tab.id)}
+                className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                  selectedCategory === tab.id
+                    ? 'bg-white text-[#1D1D1F] shadow-2xs'
+                    : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full lg:w-72 shrink-0">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
+            />
+            <input
+              type="text"
+              placeholder="Search Bengali, US, EU, or Documentary..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-[#E5E5EA] rounded-xl pl-9 pr-3 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#0066CC]"
+            />
+          </div>
+        </div>
+
+        {/* Channel Grid / Horizontal Strip */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-[#6E6E73]">
+            <div className="font-semibold text-[#1D1D1F]">
+              Verified Broadcast Lineup ·{' '}
+              <span className="font-mono tabular-nums text-[#6E6E73]">
+                {filteredChannels.length} channels
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white">IPTV-org গ্লোবাল মাস্টার প্লেলিস্ট</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                  ১১,৩০০+ ফ্রি চ্যানেল
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onOpenM3uModal}
+                className="text-[#0066CC] hover:underline font-semibold cursor-pointer whitespace-nowrap"
+              >
+                + Load M3U Regional Packs
+              </button>
+              <span className="text-[#D2D2D7]">·</span>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(true)}
+                className="text-[#1D1D1F] hover:text-[#0066CC] font-semibold cursor-pointer whitespace-nowrap"
+              >
+                Directory View →
+              </button>
+            </div>
+          </div>
+
+          {filteredChannels.length === 0 ? (
+            <div className="bg-white border border-[#E5E5EA] rounded-2xl p-8 text-center text-xs text-[#6E6E73]">
+              No channels match your current filter. Select another regional desk or load additional streams from the M3U Directory.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {filteredChannels.slice(0, 24).map((c) => {
+                const isActive = c.id === activeChannel.id;
+                return (
+                  <div
+                    key={c.id}
+                    ref={isActive ? activeStripRef : undefined}
+                    onClick={() => onSelectChannel(c)}
+                    className={`p-3.5 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      isActive
+                        ? 'bg-white border-[#0066CC] ring-2 ring-[#0066CC]/15 shadow-sm'
+                        : 'bg-white border-[#E5E5EA] hover:border-[#D2D2D7] shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center justify-center overflow-hidden shrink-0">
+                        <ChannelLogoAvatar logoUrl={c.logoUrl} isActive={isActive} />
+                      </div>
+                      <span className="text-[10px] font-mono tabular-nums text-[#86868B]">
+                        CH {c.channelNumber || '100'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div
+                        className={`text-xs font-bold line-clamp-2 leading-snug ${
+                          isActive ? 'text-[#0066CC]' : 'text-[#1D1D1F]'
+                        }`}
+                      >
+                        {c.title}
+                      </div>
+                      <div className="text-[11px] text-[#6E6E73] truncate mt-1">
+                        {c.location}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Active Channel Dossier & Contributor Studio Banner */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-8 bg-white border border-[#E5E5EA] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={activeChannel.logoUrl || BENGAL_TV_OFFICIAL_LOGO}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-8 h-8 rounded-lg object-contain bg-[#F5F5F7] border border-[#E5E5EA] p-0.5 shrink-0"
+                  />
+                  <h2 className="text-base font-bold text-[#1D1D1F] truncate">
+                    {activeChannel.title}
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(activeChannel.id)}
+                  className="p-1.5 text-[#86868B] hover:text-[#0066CC] rounded-lg hover:bg-[#F5F5F7] cursor-pointer shrink-0"
+                  title="Save Channel"
+                >
+                  <Star
+                    size={16}
+                    className={
+                      favorites.includes(activeChannel.id)
+                        ? 'fill-[#0066CC] text-[#0066CC]'
+                        : ''
+                    }
+                  />
+                </button>
+              </div>
+
+              <div className="text-xs text-[#6E6E73]">
+                {activeChannel.location} · {activeChannel.categoryLabel} ·{' '}
+                <span className="text-[#1F7A3F] font-medium">
+                  Editorial & Stream Mapping Verified
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5 font-sans">
-                https://iptv-org.github.io/iptv/index.m3u থেকে সকল দেশের ফ্রি লাইভ স্ট্রিম ১-ক্লিকে লোড করুন।
+
+              <p className="text-xs text-[#6E6E73] leading-relaxed">
+                {activeChannel.description}
               </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onOpenM3uModal}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-[#d4af37] to-[#fbbf24] text-black font-extrabold rounded-xl text-xs hover:scale-105 transition-transform flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <Globe size={13} />
-              <span>IPTV প্লেলিস্ট ব্রাউজ করুন</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Horizontal Category Pill Filter Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setSelectedCategory(tab.id)}
-              className={`px-3.5 py-2 rounded-xl whitespace-nowrap text-xs font-semibold transition-colors cursor-pointer ${
-                selectedCategory === tab.id 
-                  ? 'bg-[#d4af37] text-black font-extrabold shadow-md' 
-                  : 'bg-slate-900/80 text-slate-300 border border-white/5 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Quick Thumb-Zapper Horizontal Strip for Mobile */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-bold text-white flex items-center gap-2">
-              <Tv size={14} className="text-[#fbbf24]" />
-              <span>IPTV চ্যানেল তালিকা ({channels.length} টি চ্যানেল)</span>
-            </span>
-            <div className="flex items-center gap-2.5">
-              <button 
-                onClick={onOpenM3uModal}
-                className="text-amber-300 hover:text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 px-2.5 py-1 rounded-lg border border-amber-500/30 font-semibold cursor-pointer text-[11px] transition-colors"
-                title="১১,৩০০+ IPTV-org চ্যানেল বা কাস্টম M3U যোগ করুন"
-              >
-                + ১১,০০০+ চ্যানেল লোড করুন
-              </button>
-              <button 
-                onClick={() => setIsDrawerOpen(true)}
-                className="text-[#fbbf24] hover:underline cursor-pointer font-bold"
-              >
-                সব দেখুন ({channels.length}) →
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2">
-            {filteredChannels.slice(0, 24).map((c) => {
-              const isActive = c.id === activeChannel.id;
-              return (
-                <div
-                  key={c.id}
-                  ref={isActive ? activeStripRef : undefined}
-                  onClick={() => onSelectChannel(c)}
-                  className={`w-32 shrink-0 p-2.5 rounded-xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${
-                    isActive
-                      ? 'bg-gradient-to-b from-[#d4af37]/25 to-black border-[#d4af37] shadow-xl'
-                      : 'bg-slate-900/70 border-white/5 hover:border-white/20'
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-lg bg-black/80 border border-white/10 flex items-center justify-center mb-1.5 overflow-hidden">
-                    {c.logoUrl ? (
-                      <img src={c.logoUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Tv size={16} className={isActive ? 'text-[#fbbf24]' : 'text-slate-400'} />
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-bold truncate w-full ${isActive ? 'text-[#fbbf24]' : 'text-white'}`}>
-                    {c.title}
-                  </span>
-                  <span className="text-[9px] font-mono text-slate-400 mt-0.5">
-                    CH {c.channelNumber || '00'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Channel Info & EPG Current Show Card */}
-        <div className="bg-[#191d28] border border-[#2a2f40] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-white">{activeChannel.title}</span>
-              <button
-                onClick={() => toggleFavorite(activeChannel.id)}
-                className="text-slate-400 hover:text-amber-400 cursor-pointer"
-                title="Add to Favorites"
-              >
-                <Star size={16} className={favorites.includes(activeChannel.id) ? 'fill-amber-400 text-amber-400' : ''} />
-              </button>
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 font-mono">
-                ডিজিটাল ব্রডকাস্ট ভেরিফাইড
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed font-sans">{activeChannel.description}</p>
-            {activeChannel.currentProgramTitle && (
-              <div className="text-xs text-slate-300 font-mono flex items-center gap-1.5 pt-1">
-                <Radio size={12} className="text-red-400 shrink-0" />
-                <span className="text-[#fbbf24]">NOW ON-AIR:</span>
-                <span>{activeChannel.currentProgramTitle}</span>
+            <div className="pt-3 border-t border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-[#6E6E73]">
+                {activeChannel.currentProgramTitle ? (
+                  <>
+                    Now On Air:{' '}
+                    <strong className="text-[#1D1D1F]">
+                      {activeChannel.currentProgramTitle}
+                    </strong>
+                  </>
+                ) : (
+                  '24/7 Continuous Journalistic & Documentary Feed'
+                )}
               </div>
-            )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenEpgModal}
+                  className="px-3.5 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <Layers size={14} />
+                  <span>Program Guide</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenM3uModal}
+                  className="px-3.5 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <Globe size={14} />
+                  <span>M3U Directory</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Citizen Journalism & Documentary Upload Callout */}
+          <div className="lg:col-span-4 bg-white border border-[#E5E5EA] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#1F7A3F]">
+                <ShieldCheck size={15} />
+                <span>AI-Vetted Global & Community Broadcasts</span>
+              </div>
+              <h3 className="text-base font-bold text-[#1D1D1F]">
+                Broadcast Your Field Report or Documentary
+              </h3>
+              <p className="text-xs text-[#6E6E73] leading-relaxed">
+                Registered contributors worldwide can upload journalistic news and humanitarian documentaries. Approved videos are published immediately for community or global viewing.
+              </p>
+            </div>
+
             <button
-              onClick={onOpenEpgModal}
-              className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              type="button"
+              onClick={onOpenUploadStudio}
+              className="w-full py-2.5 px-4 bg-[#0066CC] hover:bg-[#0055B3] text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
             >
-              <Layers size={14} />
-              <span>EPG Guide</span>
-            </button>
-            <button
-              onClick={onOpenM3uModal}
-              className="px-3 py-2 bg-gradient-to-r from-[#d4af37] to-[#fbbf24] text-black font-bold rounded-xl text-xs transition-colors cursor-pointer"
-            >
-              + Ingest M3U
+              <Upload size={14} />
+              <span>Open Upload & Contributor Studio</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 4. FULL CHANNEL ZAPPING DRAWER                                 */}
-      {/* ============================================================== */}
+      {/* 5. Slide-Over Full Channel Directory Drawer */}
       {isDrawerOpen && (
-        <aside 
-          aria-label="Channel Zapping Drawer"
-          className="fixed inset-y-0 right-0 w-full sm:w-96 bg-[#161a24]/98 backdrop-blur-2xl border-l border-[#2a2f40] z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200"
+        <aside
+          aria-label="Channel Directory Drawer"
+          className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white/98 backdrop-blur-2xl border-l border-[#E5E5EA] z-50 flex flex-col shadow-2xl"
         >
-          <div className="p-4 border-b border-[#2a2f40] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Tv size={18} className="text-[#fbbf24]" />
-              <div>
-                <h2 className="font-bold text-sm text-white">চ্যানেল তালিকা ({filteredChannels.length} / {channels.length})</h2>
-                <span className="text-[10px] text-slate-400">IPTV চ্যানেল ডিরেক্টরি</span>
-              </div>
+          <div className="p-4 border-b border-[#E5E5EA] flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-sm text-[#1D1D1F]">
+                Channel Directory ({filteredChannels.length})
+              </h2>
+              <span className="text-[11px] text-[#6E6E73]">
+                Bengali · American · European · Documentary
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setIsDrawerOpen(false);
                   onOpenM3uModal();
                 }}
-                className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                title="M3U প্লেলিস্ট বা নতুন চ্যানেল যোগ করুন"
+                className="px-2.5 py-1 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#0066CC] border border-[#E5E5EA] rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap"
               >
-                <span>+ যোগ করুন</span>
+                + M3U
               </button>
               <button
+                type="button"
                 onClick={() => setIsDrawerOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-white/5 cursor-pointer"
+                className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] rounded-lg bg-[#F5F5F7] cursor-pointer"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          <div className="p-3 border-b border-white/5">
+          <div className="p-3 border-b border-[#E5E5EA]">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
+              />
               <input
                 type="text"
-                placeholder="চ্যানেলের নাম বা নম্বর দিয়ে খুঁজুন..."
+                placeholder="Filter by channel name, country, or number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                className="w-full bg-[#F5F5F7] border border-[#E5E5EA] rounded-xl pl-9 pr-3 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#0066CC] focus:bg-white"
               />
             </div>
           </div>
@@ -762,35 +913,51 @@ export default function TvViewerConsole({
                     onSelectChannel(c);
                     setIsDrawerOpen(false);
                   }}
-                  className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
                     isActive
-                      ? 'bg-[#d4af37] text-black font-bold shadow-lg'
-                      : 'hover:bg-white/5 text-slate-200'
+                      ? 'bg-[#0066CC] text-white font-semibold'
+                      : 'hover:bg-[#F5F5F7] text-[#1D1D1F]'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <span className="font-mono text-xs opacity-70 w-8 shrink-0">
-                      {c.channelNumber || '00'}
+                    <span
+                      className={`font-mono tabular-nums text-xs w-8 shrink-0 ${
+                        isActive ? 'text-white/85' : 'text-[#86868B]'
+                      }`}
+                    >
+                      {c.channelNumber || '100'}
                     </span>
                     <div className="truncate">
-                      <div className="text-xs truncate">{c.title}</div>
-                      <div className={`text-[10px] truncate ${isActive ? 'text-black/80' : 'text-slate-400'}`}>
-                        {c.categoryLabel || c.category} {c.location ? `• ${c.location}` : ''}
+                      <div className="text-xs font-semibold truncate">{c.title}</div>
+                      <div
+                        className={`text-[10px] truncate ${
+                          isActive ? 'text-white/85' : 'text-[#6E6E73]'
+                        }`}
+                      >
+                        {c.location} · {c.categoryLabel}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(c.id);
-                      }}
-                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
-                    >
-                      <Star size={14} className={favorites.includes(c.id) ? (isActive ? 'fill-black text-black' : 'fill-amber-400 text-amber-400') : 'opacity-40'} />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(c.id);
+                    }}
+                    className="p-1 cursor-pointer shrink-0"
+                  >
+                    <Star
+                      size={14}
+                      className={
+                        favorites.includes(c.id)
+                          ? isActive
+                            ? 'fill-white text-white'
+                            : 'fill-[#0066CC] text-[#0066CC]'
+                          : 'opacity-40'
+                      }
+                    />
+                  </button>
                 </div>
               );
             })}
@@ -798,11 +965,11 @@ export default function TvViewerConsole({
             {filteredChannels.length > drawerLimit && (
               <div className="p-2 pt-3 pb-6">
                 <button
+                  type="button"
                   onClick={() => setDrawerLimit((prev) => prev + 100)}
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-700 text-amber-300 font-bold text-xs rounded-xl border border-white/10 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  className="w-full py-2.5 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-semibold text-xs rounded-xl border border-[#E5E5EA] cursor-pointer"
                 >
-                  <span>আরও ১০০ টি চ্যানেল দেখুন</span>
-                  <span className="text-[10px] text-slate-400 font-mono">(অবশিষ্ট {filteredChannels.length - drawerLimit} টি)</span>
+                  Show 100 more ({filteredChannels.length - drawerLimit} remaining)
                 </button>
               </div>
             )}

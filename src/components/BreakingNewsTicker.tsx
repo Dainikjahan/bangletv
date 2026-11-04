@@ -24,62 +24,52 @@ export interface NewsHeadline {
 const STATIC_BREAKING_HEADLINES: NewsHeadline[] = [
   {
     id: 'static-bn-1',
-    title: 'বৈশ্বিক নবায়নযোগ্য জ্বালানি বিনিয়োগে নতুন রেকর্ড, সৌর ও বায়ু বিদ্যুতে শীর্ষ প্রবৃদ্ধি',
+    title: 'বৈশ্বিক নবায়নযোগ্য জ্বালানি ও জলবায়ু অভিযোজন তহবিলে নতুন আন্তর্জাতিক অঙ্গীকার',
     summary:
-      'আন্তর্জাতিক জ্বালানি সংস্থার সর্বশেষ প্রতিবেদনে জানানো হয়েছে, চলতি বছরে পরিচ্ছন্ন ও নবায়নযোগ্য জ্বালানি খাতে বৈশ্বিক বিনিয়োগ নতুন উচ্চতায় পৌঁছেছে।',
+      'উপকূলীয় ও জলবায়ু-ঝুঁকিপূর্ণ জনপদের মানবিক সুরক্ষায় পরিচ্ছন্ন জ্বালানি ও সুপেয় পানি প্রকল্পে বৈশ্বিক বিনিয়োগ নতুন উচ্চতায় পৌঁছেছে।',
     source: 'Bengal TV Desk',
-    category: 'অর্থনীতি ও বিশ্ব',
+    category: 'জলবায়ু ও মানবিক',
     publishedAt: 'সদ্যপ্রাপ্ত',
     lang: 'bn',
   },
   {
-    id: 'static-bn-2',
-    title: 'উন্মুক্ত আইপিটিভি ফেডারেশন প্রোটোকলে যুক্ত হলো ২,০০০+ আন্তর্জাতিক ফ্রি-টু-এয়ার চ্যানেল',
-    summary:
-      'বিকেন্দ্রীকৃত ব্রডকাস্ট নেটওয়ার্কের মাধ্যমে দর্শকরা এখন কোনো সাবস্ক্রিপশন ছাড়াই সরাসরি এইচডি স্ট্রিমিং ও ইন-মেমোরি ডিভিআর সুবিধা পাচ্ছেন।',
-    source: 'Broadcast Network',
-    category: 'প্রযুক্তি',
-    publishedAt: '১০ মিনিট আগে',
-    lang: 'bn',
-  },
-  {
-    id: 'static-bn-3',
-    title: 'দক্ষিণ এশিয়ায় ডিজিটাল শিক্ষা ও টেলি-লার্নিং সম্প্রচারে নতুন আঞ্চলিক উদ্যোগ ঘোষণা',
-    summary:
-      ' প্রত্যন্ত অঞ্চলের শিক্ষার্থীদের জন্য উন্মুক্ত শিক্ষামূলক টিভি ফিড ও বিজ্ঞানভিত্তিক প্রামাণ্যচিত্র সম্প্রচার জোরদার করা হচ্ছে।',
-    source: 'শিক্ষা ডেস্ক',
-    category: 'শিক্ষা ও বিজ্ঞান',
-    publishedAt: '২২ মিনিট আগে',
-    lang: 'bn',
-  },
-  {
     id: 'static-en-1',
-    title: 'Global Public Broadcasters Expand Open HLS Streaming Standards for Low-Latency Live Events',
+    title: 'UN Humanitarian Agencies Expand Clean Water & Medical Corridors Across South Asia and East Africa',
     summary:
-      'Public service media alliances have ratified updated low-latency HLS profiles designed to improve resilience across mobile and smart TV networks.',
-    source: 'World Media Wire',
-    category: 'Broadcast Tech',
-    publishedAt: '15m ago',
+      'Field coordination teams report mobile solar desalination units and community health clinics reaching over 1.4 million displaced residents.',
+    source: 'Humanitarian Wire',
+    category: 'Global Relief',
+    publishedAt: '8m ago',
     lang: 'en',
+  },
+  {
+    id: 'static-bn-2',
+    title: 'প্রবাসী বাংলা সংবাদ ডেস্ক ও আন্তর্জাতিক ফ্রি-টু-এয়ার চ্যানেলের সমন্বিত সম্প্রচার শুরু',
+    summary:
+      'ঢাকা, কলকাতা, লন্ডন ও নিউ ইয়র্কের বাংলা সংবাদ চ্যানেল এবং মানবিক প্রামাণ্যচিত্র এখন বেঙ্গল টিভির সমন্বিত নেটওয়ার্কে সরাসরি সম্প্রচারিত হচ্ছে।',
+    source: 'Bengal TV Network',
+    category: 'আন্তর্জাতিক সংবাদ',
+    publishedAt: '১৪ মি. আগে',
+    lang: 'bn',
   },
   {
     id: 'static-en-2',
-    title: 'Next-Generation Weather Satellites Deliver High-Resolution Monsoon & Cyclone Tracking Across Bay of Bengal',
+    title: 'Next-Generation Cyclone & Monsoon Satellites Improve Early Warning Lead Times Across Bay of Bengal',
     summary:
-      'Meteorological agencies now receive 10-minute interval atmospheric imagery, improving early warning lead times for coastal communities.',
-    source: 'Science & Climate',
-    category: 'Environment',
-    publishedAt: '28m ago',
+      'High-resolution atmospheric telemetry now delivers 10-minute interval storm tracking to coastal emergency broadcasters and civic shelters.',
+    source: 'Science & Climate Desk',
+    category: 'Public Safety',
+    publishedAt: '22m ago',
     lang: 'en',
   },
   {
-    id: 'static-bn-4',
-    title: 'আন্তর্জাতিক ক্রিকেট ও ফুটবল মৌসুমের সূচি প্রকাশ: সরাসরি সম্প্রচারিত হবে স্পোর্টস চ্যানেলে',
+    id: 'static-bn-3',
+    title: 'গ্রামীণ ডিজিটাল শিক্ষা ও জনস্বাস্থ্য সচেতনতায় নতুন উন্মুক্ত প্রামাণ্যচিত্র সিরিজ প্রকাশ',
     summary:
-      'আসন্ন আন্তর্জাতিক সিরিজ ও টুর্নামেন্টের সময়সূচি চূড়ান্ত হয়েছে; দর্শকদের জন্য হাই-ডেফিনিশন মাল্টি-সার্ভার ফিড প্রস্তুত রাখা হয়েছে।',
-    source: 'স্পোর্টস ডেস্ক',
-    category: 'খেলাধুলা',
-    publishedAt: '৩৫ মিনিট আগে',
+      'প্রত্যন্ত অঞ্চলের শিক্ষার্থী ও স্বাস্থ্যকর্মীদের জন্য বিজ্ঞানভিত্তিক ও মানবিক প্রামাণ্যচিত্র সম্প্রচার জোরদার করা হয়েছে।',
+    source: 'শিক্ষা ও মানবিক ডেস্ক',
+    category: 'শিক্ষা ও সমাজ',
+    publishedAt: '৩১ মি. আগে',
     lang: 'bn',
   },
 ];
@@ -93,13 +83,13 @@ const RSS_ENDPOINTS: Array<{
   {
     url: 'https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/bengali/rss.xml',
     source: 'BBC বাংলা',
-    category: 'আন্তর্জাতিক ও বাংলাদেশ',
+    category: 'বাংলাদেশ ও বিশ্ব',
     lang: 'bn',
   },
   {
     url: 'https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/world/rss.xml',
     source: 'BBC World',
-    category: 'World News',
+    category: 'World Dispatch',
     lang: 'en',
   },
 ];
@@ -146,12 +136,8 @@ export default function BreakingNewsTicker() {
   const [usingLiveFeed, setUsingLiveFeed] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<NewsHeadline | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
-  const [clockText, setClockText] = useState<string>(() => {
-    const now = new Date();
-    return now.toTimeString().slice(0, 8);
-  });
+  const [clockText, setClockText] = useState<string>(() => new Date().toTimeString().slice(0, 8));
 
-  // Live broadcast studio clock (tabular numerals)
   useEffect(() => {
     const interval = setInterval(() => {
       setClockText(new Date().toTimeString().slice(0, 8));
@@ -174,7 +160,9 @@ export default function BreakingNewsTicker() {
               throw new Error('Invalid feed payload');
             }
             return data.items.slice(0, 8).map((item: any, idx: number): NewsHeadline => ({
-              id: `live-${endpoint.lang}-${idx}-${ (item.guid || item.title || idx).toString().slice(-10) }`,
+              id: `live-${endpoint.lang}-${idx}-${(item.guid || item.title || idx)
+                .toString()
+                .slice(-10)}`,
               title: stripHtml(item.title || ''),
               summary:
                 stripHtml(item.description || item.content || '') ||
@@ -201,7 +189,6 @@ export default function BreakingNewsTicker() {
       });
 
       if (liveItems.length > 0) {
-        // Interleave Bengali and English items cleanly so 'all' mode feels balanced
         const bnList = liveItems.filter((i) => i.lang === 'bn');
         const enList = liveItems.filter((i) => i.lang === 'en');
         const merged: NewsHeadline[] = [];
@@ -224,7 +211,6 @@ export default function BreakingNewsTicker() {
     }
   }, []);
 
-  // Fetch on mount & refresh automatically every 5 minutes
   useEffect(() => {
     fetchBreakingNews();
     const refreshTimer = setInterval(fetchBreakingNews, 5 * 60 * 1000);
@@ -233,9 +219,7 @@ export default function BreakingNewsTicker() {
 
   const visibleHeadlines = useMemo(() => {
     const filtered =
-      feedFilter === 'all'
-        ? headlines
-        : headlines.filter((h) => h.lang === feedFilter);
+      feedFilter === 'all' ? headlines : headlines.filter((h) => h.lang === feedFilter);
     return filtered.length > 0 ? filtered : STATIC_BREAKING_HEADLINES;
   }, [headlines, feedFilter]);
 
@@ -251,35 +235,33 @@ export default function BreakingNewsTicker() {
   return (
     <section
       aria-label="Breaking News Ticker"
-      className="w-full bg-[#161a24] border-y border-[#2a2f40] text-[#f2eee9] select-none"
+      className="w-full bg-white border-y border-[#E5E5EA] text-[#1D1D1F] select-none"
     >
-      {/* Main Single-Row Broadcast Ticker Bar */}
-      <div className="flex items-stretch min-h-[38px] text-xs overflow-hidden">
-        {/* Left Breaking Bug */}
-        <div className="bg-[#be123c] text-white px-3 sm:px-4 flex items-center gap-2 shrink-0 font-bold tracking-wide">
+      <div className="flex items-stretch min-h-[40px] text-xs overflow-hidden">
+        {/* Left Live Breaking Label */}
+        <div className="bg-[#D70015] text-white px-3.5 sm:px-4 flex items-center gap-2 shrink-0 font-semibold tracking-tight">
           <span
             className="w-2 h-2 rounded-full bg-white animate-live-pulse shrink-0"
             aria-hidden="true"
           />
-          <span className="whitespace-nowrap text-[11px] sm:text-xs font-extrabold">
-            ব্রেকিং নিউজ
+          <span className="whitespace-nowrap text-[11px] sm:text-xs font-bold">
+            BREAKING
           </span>
-          <span className="hidden md:inline text-white/75 font-normal">·</span>
-          <span className="hidden md:inline text-[10px] font-mono text-rose-100 whitespace-nowrap">
-            {usingLiveFeed ? 'LIVE WIRE' : 'STUDIO DESK'}
+          <span className="hidden md:inline text-white/75">·</span>
+          <span className="hidden md:inline text-[10px] font-mono text-white/95 whitespace-nowrap">
+            {usingLiveFeed ? 'LIVE WIRE' : 'NEWS DESK'}
           </span>
         </div>
 
-        {/* Center Scrolling / Stepped Headline Viewport */}
-        <div className="relative flex-1 overflow-hidden flex items-center bg-[#141720]">
-          {/* Subtle edge fade masks */}
+        {/* Center Scrolling Track */}
+        <div className="relative flex-1 overflow-hidden flex items-center bg-[#FAFAFC]">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#141720] to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#FAFAFC] to-transparent z-10"
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#141720] to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#FAFAFC] to-transparent z-10"
           />
 
           <div
@@ -287,7 +269,6 @@ export default function BreakingNewsTicker() {
               isPaused || selectedItem ? 'is-paused' : ''
             }`}
           >
-            {/* Duplicate track twice for seamless 0 -> -50% infinite loop */}
             {[0, 1].map((copyIdx) => (
               <div
                 key={copyIdx}
@@ -302,29 +283,26 @@ export default function BreakingNewsTicker() {
                       setFocusedIndex(idx);
                       setSelectedItem((curr) => (curr?.id === item.id ? null : item));
                     }}
-                    className="group inline-flex items-center gap-2 px-5 py-1 text-left hover:text-[#fbbf24] focus-visible:outline-none focus-visible:text-[#fbbf24] transition-colors cursor-pointer whitespace-nowrap"
-                    title="বিস্তারিত পড়তে ক্লিক করুন"
+                    className="group inline-flex items-center gap-2 px-5 py-1 text-left hover:text-[#0066CC] focus-visible:outline-none focus-visible:text-[#0066CC] transition-colors cursor-pointer whitespace-nowrap"
+                    title="Click to read dispatch summary"
                   >
-                    <span className="text-[11px] text-[#d4af37] font-medium">
+                    <span className="text-[11px] text-[#0066CC] font-semibold">
                       {item.source}
                     </span>
-                    <span className="text-slate-500" aria-hidden="true">
+                    <span className="text-[#86868B]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="text-xs sm:text-[13px] font-semibold text-[#f2eee9] group-hover:text-[#fbbf24] transition-colors">
+                    <span className="text-xs sm:text-[13px] font-medium text-[#1D1D1F] group-hover:text-[#0066CC] transition-colors">
                       {item.title}
                     </span>
-                    <span className="text-slate-500" aria-hidden="true">
+                    <span className="text-[#86868B]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="text-[11px] font-mono tabular-nums text-slate-400">
+                    <span className="text-[11px] font-mono tabular-nums text-[#6E6E73]">
                       {item.publishedAt}
                     </span>
-                    <span
-                      className="ml-4 text-[#d4af37]/50 font-mono text-xs"
-                      aria-hidden="true"
-                    >
-                      ◆
+                    <span className="ml-4 text-[#D2D2D7]" aria-hidden="true">
+                      •
                     </span>
                   </button>
                 ))}
@@ -333,17 +311,16 @@ export default function BreakingNewsTicker() {
           </div>
         </div>
 
-        {/* Right Interactive Ticker Controls & Studio Clock */}
-        <div className="bg-[#191d28] border-l border-[#2a2f40] px-2 sm:px-3 flex items-center gap-1.5 shrink-0">
-          {/* Feed Language Filter Segmented Control */}
+        {/* Right Controls & Studio Clock */}
+        <div className="bg-white border-l border-[#E5E5EA] px-2.5 sm:px-3 flex items-center gap-1.5 shrink-0">
           <div
             role="group"
             aria-label="News language filter"
-            className="hidden sm:flex items-center bg-[#141720] border border-[#2a2f40] rounded-lg p-0.5 text-[10px]"
+            className="hidden sm:flex items-center bg-[#EFEFF4] rounded-lg p-0.5 text-[10px]"
           >
             {(
               [
-                { id: 'all', label: 'সব' },
+                { id: 'all', label: 'All' },
                 { id: 'bn', label: 'বাংলা' },
                 { id: 'en', label: 'EN' },
               ] as const
@@ -355,10 +332,10 @@ export default function BreakingNewsTicker() {
                   setFeedFilter(tab.id);
                   setSelectedItem(null);
                 }}
-                className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   feedFilter === tab.id
-                    ? 'bg-[#d4af37] text-[#141720]'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-white text-[#1D1D1F] shadow-2xs'
+                    : 'text-[#6E6E73] hover:text-[#1D1D1F]'
                 }`}
               >
                 {tab.label}
@@ -366,12 +343,10 @@ export default function BreakingNewsTicker() {
             ))}
           </div>
 
-          {/* Step Prev / Play-Pause / Step Next */}
           <button
             type="button"
             onClick={() => handleStepHeadline(-1)}
-            className="p-1.5 text-slate-300 hover:text-white hover:bg-white/5 rounded-md transition-colors cursor-pointer"
-            title="পূর্ববর্তী সংবাদ (Previous Headline)"
+            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
             aria-label="Previous headline"
           >
             <ChevronLeft size={14} />
@@ -380,8 +355,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => setIsPaused((prev) => !prev)}
-            className="p-1.5 text-slate-300 hover:text-[#fbbf24] hover:bg-white/5 rounded-md transition-colors cursor-pointer"
-            title={isPaused ? 'স্ক্রল চালু করুন (Resume Ticker)' : 'স্ক্রল থামান (Pause Ticker)'}
+            className="p-1.5 text-[#6E6E73] hover:text-[#0066CC] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
             aria-label={isPaused ? 'Resume ticker' : 'Pause ticker'}
           >
             {isPaused ? <Play size={13} /> : <Pause size={13} />}
@@ -390,39 +364,35 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => handleStepHeadline(1)}
-            className="p-1.5 text-slate-300 hover:text-white hover:bg-white/5 rounded-md transition-colors cursor-pointer"
-            title="পরবর্তী সংবাদ (Next Headline)"
+            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
             aria-label="Next headline"
           >
             <ChevronRight size={14} />
           </button>
 
-          {/* Refresh Live Feed Button */}
           <button
             type="button"
             onClick={fetchBreakingNews}
             disabled={isFetching}
-            className="p-1.5 text-slate-300 hover:text-[#fbbf24] hover:bg-white/5 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
-            title="তাজা সংবাদ রিফ্রেশ করুন (Refresh News Feed)"
+            className="p-1.5 text-[#6E6E73] hover:text-[#0066CC] hover:bg-[#F5F5F7] rounded-md transition-colors disabled:opacity-50 cursor-pointer"
             aria-label="Refresh breaking news"
           >
-            <RefreshCw size={13} className={isFetching ? 'animate-spin text-[#fbbf24]' : ''} />
+            <RefreshCw size={13} className={isFetching ? 'animate-spin text-[#0066CC]' : ''} />
           </button>
 
-          {/* Live Broadcast Clock (Desktop) */}
-          <div className="hidden lg:flex items-center gap-1.5 pl-2 ml-1 border-l border-[#2a2f40] text-[11px] font-mono tabular-nums text-slate-300 whitespace-nowrap">
-            <Clock size={12} className="text-[#d4af37] shrink-0" />
+          <div className="hidden lg:flex items-center gap-1.5 pl-2 ml-1 border-l border-[#E5E5EA] text-[11px] font-mono tabular-nums text-[#6E6E73] whitespace-nowrap">
+            <Clock size={12} className="text-[#86868B] shrink-0" />
             <span>{clockText}</span>
           </div>
         </div>
       </div>
 
-      {/* Expandable Inline Headline Reader Panel (Opens on Headline Click or Step) */}
+      {/* Expandable Inline Headline Summary */}
       {selectedItem && (
-        <div className="bg-[#191d28] border-t border-[#2a2f40] px-4 py-3 flex items-start justify-between gap-4 animate-in fade-in duration-150">
+        <div className="bg-[#F5F5F7] border-t border-[#E5E5EA] px-4 sm:px-6 py-3.5 flex items-start justify-between gap-4">
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[#fbbf24] font-semibold">
+            <div className="flex items-center gap-2 text-[11px] text-[#6E6E73] flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[#0066CC] font-semibold">
                 <Globe size={12} />
                 <span>{selectedItem.source}</span>
               </span>
@@ -431,14 +401,14 @@ export default function BreakingNewsTicker() {
               <span aria-hidden="true">·</span>
               <span className="font-mono tabular-nums">{selectedItem.publishedAt}</span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono tabular-nums text-slate-500">
+              <span className="font-mono tabular-nums text-[#86868B]">
                 {focusedIndex + 1}/{visibleHeadlines.length}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white leading-snug">
+            <h3 className="text-sm font-bold text-[#1D1D1F] leading-snug">
               {selectedItem.title}
             </h3>
-            <p className="text-xs text-slate-300 leading-relaxed max-w-4xl">
+            <p className="text-xs text-[#6E6E73] leading-relaxed max-w-4xl">
               {selectedItem.summary}
             </p>
           </div>
@@ -446,8 +416,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => setSelectedItem(null)}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors shrink-0 cursor-pointer"
-            title="বন্ধ করুন (Close)"
+            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#E5E5EA] rounded-lg transition-colors shrink-0 cursor-pointer"
             aria-label="Close headline summary"
           >
             <X size={15} />

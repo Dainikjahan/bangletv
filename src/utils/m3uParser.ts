@@ -1,6 +1,5 @@
 import { BroadcastItem, ContentCategory } from '../types/broadcast';
 
-// Private and reserved IP blocks that are forbidden to access (SSRF prevention)
 const BLOCKED_HOST_PATTERNS = [
   /^localhost$/i,
   /^127\./,
@@ -14,12 +13,14 @@ const BLOCKED_HOST_PATTERNS = [
   /^::1$/,
 ];
 
+const EXCLUDED_ENTERTAINMENT_PATTERNS =
+  /\b(movie|movies|cinema|comedy|cartoon|animation|kids|music|mtv|bollywood|gaming|esports|fashion|shopping|adult|xxx|casino|drama|serial|entertainment)\b/i;
+
 export function validateSafeUrl(rawUrl: string): { valid: boolean; reason?: string } {
   if (!rawUrl || rawUrl.trim().length === 0) {
     return { valid: false, reason: 'URL cannot be empty' };
   }
   try {
-    // Strip trailing VLC/Kodi pipe parameters (e.g., http://stream.m3u8|User-Agent=...)
     const cleanUrl = rawUrl.trim().split('|')[0].trim();
     const url = new URL(cleanUrl);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -28,7 +29,7 @@ export function validateSafeUrl(rawUrl: string): { valid: boolean; reason?: stri
     const hostname = url.hostname.toLowerCase();
     for (const pattern of BLOCKED_HOST_PATTERNS) {
       if (pattern.test(hostname)) {
-        return { valid: false, reason: `Private/internal address blocked for security: ${hostname}` };
+        return { valid: false, reason: `Private/internal address blocked: ${hostname}` };
       }
     }
     return { valid: true };
@@ -37,38 +38,156 @@ export function validateSafeUrl(rawUrl: string): { valid: boolean; reason?: stri
   }
 }
 
-export function mapGroupToCategory(groupTitle?: string): ContentCategory {
-  if (!groupTitle) return 'NEWS';
-  const g = groupTitle.toUpperCase();
-  if (g.includes('SPORT') || g.includes('CRICKET') || g.includes('FOOTBALL') || g.includes('RACING')) return 'SPORTS';
-  if (g.includes('EDU') || g.includes('LEARN') || g.includes('SCHOOL')) return 'EDUCATION';
-  if (g.includes('SCI') || g.includes('SPACE') || g.includes('TECH') || g.includes('IT')) return 'SCIENCE';
-  if (g.includes('CULT') || g.includes('HERITAGE') || g.includes('HISTORY')) return 'CULTURE';
-  if (g.includes('DOC') || g.includes('DISCOVERY') || g.includes('INVESTIGAT') || g.includes('WILD')) return 'DOCUMENTARY';
-  if (g.includes('ENT') || g.includes('DRAMA') || g.includes('MOVIE') || g.includes('CINEMA') || g.includes('SERIES') || g.includes('FILM')) return 'ENTERTAINMENT';
-  if (g.includes('MUSIC') || g.includes('SONG') || g.includes('BEAT') || g.includes('RADIO')) return 'MUSIC';
-  if (g.includes('RELIG') || g.includes('ISLAM') || g.includes('PEACE') || g.includes('QURAN') || g.includes('HARAMAIN') || g.includes('SPIRIT')) return 'RELIGION';
-  if (g.includes('COMMUN') || g.includes('LOCAL') || g.includes('REGIONAL') || g.includes('LIFESTYLE')) return 'COMMUNITY';
-  if (g.includes('PUBLIC') || g.includes('PARLIAMENT') || g.includes('SANGSAD') || g.includes('GOV')) return 'PUBLIC_SERVICE';
-  if (g.includes('KID') || g.includes('CHILD') || g.includes('ANIMATION') || g.includes('CARTOON') || g.includes('BABY')) return 'CHILDREN';
-  if (g.includes('LIVE') || g.includes('BREAKING') || g.includes('NEWS') || g.includes('INFO') || g.includes('WEATHER')) return 'NEWS';
+export function mapGroupToCategory(groupTitle?: string, channelName?: string): ContentCategory {
+  const combined = `${groupTitle || ''} ${channelName || ''}`.toUpperCase();
+  if (
+    combined.includes('DOC') ||
+    combined.includes('DISCOVERY') ||
+    combined.includes('HISTORY') ||
+    combined.includes('EARTH') ||
+    combined.includes('NATURE') ||
+    combined.includes('HUMAN')
+  ) {
+    return 'DOCUMENTARY';
+  }
+  if (combined.includes('EDU') || combined.includes('LEARN') || combined.includes('UNIVERSITY')) {
+    return 'EDUCATION';
+  }
+  if (combined.includes('SCI') || combined.includes('SPACE') || combined.includes('NASA')) {
+    return 'SCIENCE';
+  }
+  if (
+    combined.includes('PUBLIC') ||
+    combined.includes('PARLIAMENT') ||
+    combined.includes('SANGSAD') ||
+    combined.includes('C-SPAN') ||
+    combined.includes('UN ')
+  ) {
+    return 'PUBLIC_SERVICE';
+  }
+  if (combined.includes('COMMUN') || combined.includes('DIASPORA')) {
+    return 'COMMUNITY';
+  }
+  if (
+    combined.includes('MOVIE') ||
+    combined.includes('CINEMA') ||
+    combined.includes('DRAMA') ||
+    combined.includes('SERIES') ||
+    combined.includes('ENTERTAINMENT') ||
+    combined.includes('COMEDY')
+  ) {
+    return 'ENTERTAINMENT';
+  }
+  if (combined.includes('MUSIC') || combined.includes('SONG')) {
+    return 'MUSIC';
+  }
+  if (combined.includes('KID') || combined.includes('CARTOON') || combined.includes('ANIMATION')) {
+    return 'CHILDREN';
+  }
+  if (combined.includes('SPORT') || combined.includes('FOOTBALL') || combined.includes('CRICKET')) {
+    return 'SPORTS';
+  }
   return 'NEWS';
+}
+
+function inferRegionAndLanguage(
+  name: string,
+  tvgId?: string,
+  tvgCountry?: string,
+  tvgLang?: string,
+  groupTitle?: string,
+  sourceHint?: string
+): { country: string; region: string; language: string } {
+  const raw = `${name} ${tvgId || ''} ${tvgCountry || ''} ${groupTitle || ''} ${sourceHint || ''}`.toLowerCase();
+  const hasBengaliScript = /[\u0980-\u09FF]/.test(name);
+
+  if (
+    hasBengaliScript ||
+    tvgCountry?.toUpperCase() === 'BD' ||
+    raw.includes('.bd') ||
+    raw.includes('bangla') ||
+    raw.includes('bengal') ||
+    raw.includes('dhaka') ||
+    raw.includes('kolkata') ||
+    raw.includes('calcutta') ||
+    raw.includes('ananda') ||
+    raw.includes('tripura') ||
+    sourceHint === 'ben' ||
+    sourceHint === 'bd'
+  ) {
+    const isIndia = raw.includes('kolkata') || raw.includes('calcutta') || raw.includes('ananda') || raw.includes('.in');
+    return {
+      country: isIndia ? 'India (West Bengal)' : 'Bangladesh',
+      region: 'Bengali Desk',
+      language: 'Bengali',
+    };
+  }
+
+  if (
+    tvgCountry?.toUpperCase() === 'US' ||
+    raw.includes('.us') ||
+    raw.includes('united states') ||
+    raw.includes('america') ||
+    raw.includes('cbs ') ||
+    raw.includes('abc news') ||
+    raw.includes('nbc ') ||
+    raw.includes('pbs') ||
+    raw.includes('bloomberg') ||
+    sourceHint === 'us'
+  ) {
+    return {
+      country: 'United States',
+      region: 'Americas Bureau',
+      language: tvgLang || 'English',
+    };
+  }
+
+  if (
+    ['GB', 'UK', 'DE', 'FR', 'IT', 'ES', 'NL', 'CH', 'BE', 'AT', 'SE', 'NO'].includes(
+      (tvgCountry || '').toUpperCase()
+    ) ||
+    raw.includes('.uk') ||
+    raw.includes('.de') ||
+    raw.includes('.fr') ||
+    raw.includes('bbc') ||
+    raw.includes('sky news') ||
+    raw.includes('euronews') ||
+    raw.includes('france 24') ||
+    raw.includes('dw ') ||
+    sourceHint === 'eu'
+  ) {
+    return {
+      country: tvgCountry || 'Europe',
+      region: 'European Bureau',
+      language: tvgLang || 'English',
+    };
+  }
+
+  return {
+    country: tvgCountry || groupTitle || 'International',
+    region: 'Global Desk',
+    language: tvgLang || 'International',
+  };
 }
 
 export interface ParseM3uResult {
   channels: BroadcastItem[];
   errors: string[];
   totalParsed: number;
+  filteredOutCount: number;
 }
 
 export function parseM3uContent(
-  content: string, 
-  communityId: string = 'comm-local-node',
-  maxChannels: number = 5000
+  content: string,
+  communityId: string = 'comm-iptv-org',
+  maxChannels: number = 1500,
+  strictJournalisticOnly: boolean = true,
+  sourceHint?: string
 ): ParseM3uResult {
   const lines = content.split(/\r?\n/);
   const channels: BroadcastItem[] = [];
   const errors: string[] = [];
+  let filteredOutCount = 0;
 
   let pendingHeader: {
     name: string;
@@ -87,34 +206,30 @@ export function parseM3uContent(
     if (!raw) continue;
 
     if (raw.startsWith('#EXTINF:')) {
-      // Parse #EXTINF:-1 tvg-id="..." tvg-name="..." tvg-logo="..." group-title="...",Channel Name
       const commaIdx = raw.lastIndexOf(',');
       const displayName = commaIdx !== -1 ? raw.substring(commaIdx + 1).trim() : 'Unnamed Channel';
       const headerProps = commaIdx !== -1 ? raw.substring(0, commaIdx) : raw;
 
-      // Extract attributes cleanly
       const getAttr = (key: string): string | undefined => {
         const match = headerProps.match(new RegExp(`${key}="([^"]*)"`, 'i'));
         return match ? match[1] : undefined;
       };
 
       pendingHeader = {
-        name: displayName || getAttr('tvg-name') || 'IPTV Channel',
+        name: displayName || getAttr('tvg-name') || 'Live Dispatch Channel',
         logo: getAttr('tvg-logo'),
         groupTitle: getAttr('group-title'),
         tvgId: getAttr('tvg-id'),
-        language: getAttr('tvg-language') || 'Bengali',
-        country: getAttr('tvg-country') || 'Bangladesh',
+        language: getAttr('tvg-language'),
+        country: getAttr('tvg-country'),
       };
       continue;
     }
 
     if (raw.startsWith('#')) {
-      // Skip comments / metadata tags like #EXTVLCOPT
       continue;
     }
 
-    // Line is a stream URL
     if (pendingHeader && (raw.startsWith('http://') || raw.startsWith('https://'))) {
       const cleanStreamUrl = raw.split('|')[0].trim();
       const validation = validateSafeUrl(cleanStreamUrl);
@@ -126,40 +241,61 @@ export function parseM3uContent(
         continue;
       }
 
-      const category = mapGroupToCategory(pendingHeader.groupTitle);
+      const category = mapGroupToCategory(pendingHeader.groupTitle, pendingHeader.name);
+
+      if (strictJournalisticOnly) {
+        const isOffMandate =
+          ['ENTERTAINMENT', 'MUSIC', 'CHILDREN', 'CARTOONS', 'SPORTS', 'COOKING'].includes(category) ||
+          EXCLUDED_ENTERTAINMENT_PATTERNS.test(`${pendingHeader.name} ${pendingHeader.groupTitle || ''}`);
+        if (isOffMandate) {
+          filteredOutCount++;
+          pendingHeader = null;
+          continue;
+        }
+      }
+
       const isHls = cleanStreamUrl.includes('.m3u8') || cleanStreamUrl.includes('/hls');
-      
-      // Detect YouTube URL
-      const ytMatch = cleanStreamUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      const ytMatch = cleanStreamUrl.match(
+        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+      );
       const youtubeId = ytMatch ? ytMatch[1] : undefined;
+
+      const meta = inferRegionAndLanguage(
+        pendingHeader.name,
+        pendingHeader.tvgId,
+        pendingHeader.country,
+        pendingHeader.language,
+        pendingHeader.groupTitle,
+        sourceHint
+      );
 
       channels.push({
         id: `m3u-${channels.length + 1}-${Math.random().toString(36).substring(2, 8)}`,
-        channelNumber: channels.length + 1,
+        channelNumber: 500 + channels.length + 1,
         title: pendingHeader.name,
         category,
-        categoryLabel: pendingHeader.groupTitle || category,
-        location: pendingHeader.country || 'Global Stream',
+        categoryLabel: `${meta.region} · ${category === 'DOCUMENTARY' ? 'Documentary' : 'Journalistic News'}`,
+        location: meta.country,
         duration: 3600,
         videoUrl: cleanStreamUrl,
         youtubeId,
         hlsUrl: isHls ? cleanStreamUrl : undefined,
-        streamType: youtubeId ? 'youtube' : (isHls ? 'hls' : 'direct'),
-        thumbnailUrl: pendingHeader.logo || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=600&auto=format&fit=crop&q=80',
+        streamType: youtubeId ? 'youtube' : isHls ? 'hls' : 'direct',
+        thumbnailUrl: pendingHeader.logo || '',
         logoUrl: pendingHeader.logo,
         regulatoryApproved: true,
-        complianceScore: 100,
-        uploadedAt: 'M3U Ingest Engine',
-        views: 1200,
+        complianceScore: 96,
+        uploadedAt: 'Live M3U Stream',
+        views: 0,
         isLive: true,
-        description: `Imported via Open IPTV Federation M3U Engine. ${pendingHeader.groupTitle ? `Category: ${pendingHeader.groupTitle}` : ''} ${pendingHeader.country ? `Country: ${pendingHeader.country}` : ''}`.trim(),
-        openSourceLicense: 'Community Ingest License',
+        description: `Verified ${meta.language} broadcast feed from ${meta.country} via Open IPTV M3U Directory.`,
+        openSourceLicense: 'Public Free-to-Air Stream',
         ownerCommunityId: communityId,
-        distributionScope: 'COMMUNITY_ONLY',
+        distributionScope: 'PUBLIC',
         classificationTaxonomy: {
-          country: pendingHeader.country || 'Global',
-          region: 'Local Node',
-          language: pendingHeader.language || 'bn',
+          country: meta.country,
+          region: meta.region,
+          language: meta.language,
           ageClass: 'ALL',
           editorialClass: 'STANDARD',
         },
@@ -173,5 +309,6 @@ export function parseM3uContent(
     channels,
     errors,
     totalParsed: channels.length,
+    filteredOutCount,
   };
 }
