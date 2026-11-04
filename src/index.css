@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+@theme {
+  /* ============================================================== */
+  /* AMERICAN SOPHISTICATED BROADCAST PALETTE (bengaltv.com)        */
+  /* ============================================================== */
+
+  /* 1. Deep Midnight Navy Hierarchy */
+  --color-midnight-950: #02040a; /* Obsidian Deep Canvas */
+  --color-midnight-900: #050b18; /* Primetime Broadcast Navy */
+  --color-midnight-850: #081021; /* Studio Deck Navy */
+  --color-midnight-800: #0d1830; /* Control Room Surface */
+  --color-midnight-750: #101e3d; /* Card / Terminal Background */
+  --color-midnight-700: #1a2f5e; /* Hairline Divider & Structural Border */
+  --color-midnight-600: #264382; /* Interactive / Focused State */
+  --color-midnight-500: #3b65bf; /* Accent Blue Glow */
+
+  /* 2. Sovereign Gold & Metallic Brass Palette */
+  --color-gold-100: #fefce8; /* Pale Starlight */
+  --color-gold-200: #fef08a; /* Champagne Shimmer */
+  --color-gold-300: #fde047; /* Bright Studio Gold */
+  --color-gold-400: #fbbf24; /* Warm American Broadcast Gold */
+  --color-gold-500: #eab308; /* Vivid Sovereign Gold */
+  --color-gold-600: #d4af37; /* Signature Bengal TV Royal Gold */
+  --color-gold-700: #b58d20; /* Burnished Brass */
+  --color-gold-800: #8c6b12; /* Deep Antique Bronze */
+  --color-gold-900: #5c4308; /* Shadow Gold Border */
+
+  /* 3. Crisp White & High-Legibility Studio Neutrals */
+  --color-crisp-white: #ffffff;
+  --color-studio-50: #f8fafc;
+  --color-studio-100: #f1f5f9;
+  --color-studio-200: #e2e8f0;
+  --color-studio-300: #cbd5e1;
+  --color-studio-400: #94a3b8;
+  --color-studio-500: #64748b;
+
+  /* 4. Broadcast Breaking News Red Alert */
+  --color-broadcast-ruby: #be123c;
+  --color-broadcast-red: #e11d48;
+  --color-live-pulse: #ef4444;
+
+  /* 5. Typography */
+  --font-serif-royal: 'Cinzel', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', 'Montserrat', 'Hind Siliguri', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* 6. Shadows & Atmospheric Depth */
+  --shadow-gold-glow: 0 0 25px rgba(212, 175, 55, 0.22);
+  --shadow-gold-subtle: 0 4px 18px rgba(212, 175, 55, 0.15);
+  --shadow-navy-depth: 0 20px 45px -12px rgba(2, 4, 10, 0.88);
+  --shadow-broadcast-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Custom Scrollbar for American Broadcast Terminal Views */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050b18;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a2f5e;
+  border-radius: 9999px;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+/* Global Html & Body Defaults */
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #02040a;
+  color: #f8fafc;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Breaking News Ticker Marquee Animation */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes tickerSeamless {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 32s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.animate-ticker-seamless {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: tickerSeamless 58s linear infinite;
+}
+
+.animate-ticker-seamless:hover,
+.animate-ticker-seamless.is-paused {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker-seamless,
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* Subtle Continuous Pulse for 24/7 Live Status */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.animate-live-pulse {
+  animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Spin slow for loop indicator */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+/* ============================================================== */
+/* BROADCAST STUDIO SURFACE UTILITIES                            */
+/* ============================================================== */
+
+/* Glass Panel with Gold-Tinted Hairline Border */
+.broadcast-glass {
+  background: rgba(5, 11, 24, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+/* Premium Metallic Gold Gradient Text */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #fef9c3 0%, #fbbf24 45%, #d4af37 80%, #b58d20 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Solid Sovereign Gold Gradient for Badges & Buttons */
+.gold-gradient-bg {
+  background: linear-gradient(135deg, #fef08a 0%, #fbbf24 50%, #d4af37 100%);
+  color: #02040a;
+}
+
+/* Deep Midnight Navy Studio Card */
+.navy-card {
+  background: #081021;
+  border: 1px solid #1a2f5e;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65);
+}
+
+.navy-card:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 12px 35px -8px rgba(212, 175, 55, 0.08);
+}
+
+/* Elevated Control Room Console Panel */
+.studio-panel {
+  background: #0d1830;
+  border: 1px solid #1a2f5e;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Tabular figures for news tickers, clocks & timers */
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Live Player Synchronized Lower-Third Overlay */
+.live-player-info {
+  background: rgba(5, 11, 24, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-left: 4px solid #d4af37;
+  border-top: 1px solid #1a2f5e;
+  border-right: 1px solid #1a2f5e;
+  border-bottom: 1px solid #1a2f5e;
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.85);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
