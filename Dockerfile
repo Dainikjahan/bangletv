@@ -8,11 +8,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency definitions
-COPY package.json ./
+# Copy dependency definitions and lockfile
+COPY package.json package-lock.json ./
 
-# Install all dependencies (including devDependencies needed for Vite build)
-RUN npm install
+# Deterministically install all dependencies using lockfile
+RUN npm ci
 
 # Copy source code and build config
 COPY tsconfig.json vite.config.ts index.html ./
@@ -30,9 +30,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Install production dependencies only
-COPY package.json ./
-RUN npm install --omit=dev
+# Install production dependencies only using lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # Copy compiled frontend from builder stage
 COPY --from=builder /app/dist ./dist

@@ -5,6 +5,8 @@ export interface ComplianceAnalysisResponse extends AiModerationResult {
   isJournalisticOrHumanitarian?: boolean;
 }
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
 /**
  * Calls the server-side Bengal TV Gemini AI Censorship & Broadcast Compliance Gateway (/api/compliance/analyze).
  * Strictly enforces journalistic news and humanitarian/mankind documentary standards.
@@ -17,7 +19,8 @@ export async function analyzeContentStandards(
   location?: string,
   transcriptNotes?: string
 ): Promise<ComplianceAnalysisResponse> {
-  const response = await fetch('/api/compliance/analyze', {
+  const targetUrl = `${API_BASE}/api/compliance/analyze`;
+  const response = await fetch(targetUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -32,8 +35,13 @@ export async function analyzeContentStandards(
     }),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        'Compliance API route not found (HTTP 404). If hosting frontend on Cloudflare Pages, set VITE_API_BASE_URL to your deployed Cloud Run backend URL.'
+      );
+    }
     throw new Error(data?.error || `Compliance server returned HTTP ${response.status}`);
   }
 
@@ -43,7 +51,8 @@ export async function analyzeContentStandards(
 export async function uploadVideoBinary(
   file: File
 ): Promise<{ videoUrl: string; fileName: string; bytes: number }> {
-  const response = await fetch('/api/uploads', {
+  const targetUrl = `${API_BASE}/api/uploads`;
+  const response = await fetch(targetUrl, {
     method: 'POST',
     headers: {
       'Content-Type': file.type || 'application/octet-stream',
@@ -52,10 +61,24 @@ export async function uploadVideoBinary(
     body: file,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        'Upload API route not found (HTTP 404). If hosting frontend on Cloudflare Pages, configure VITE_API_BASE_URL or use persistent cloud object storage (R2 / Firebase Storage).'
+      );
+    }
     throw new Error(data?.error || `Upload failed with HTTP ${response.status}`);
   }
 
-  return data as { videoUrl: string; fileName: string; bytes: number };
+  // If relative path returned and API_BASE is set, ensure absolute URL
+  const videoUrl = data?.videoUrl && API_BASE && data.videoUrl.startsWith('/')
+    ? `${API_BASE}${data.videoUrl}`
+    : data.videoUrl;
+
+  return {
+    videoUrl,
+    fileName: data.fileName,
+    bytes: data.bytes,
+  };
 }

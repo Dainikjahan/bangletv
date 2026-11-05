@@ -1,5 +1,0 @@
-# Bengal TV Uploads Directory
-# Local container storage for uploaded video files.
-# Notice: In Google Cloud Run, container filesystems are ephemeral.
-# Files uploaded to this directory do not persist across instance restarts or deployments.
-# For durable production storage, integrate Google Cloud Storage (GCS) or Firebase Storage.

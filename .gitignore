@@ -6,6 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
-uploads/*
-!uploads/.gitkeep
+uploads/
 .dockerignore.swp

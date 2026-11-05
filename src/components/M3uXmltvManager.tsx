@@ -145,7 +145,8 @@ export default function M3uXmltvManager({
       // Fall back to server-side M3U proxy if remote server lacks browser CORS headers
     }
 
-    const proxyRes = await fetch(`/api/m3u-proxy?url=${encodeURIComponent(url)}`);
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    const proxyRes = await fetch(`${apiBase}/api/m3u-proxy?url=${encodeURIComponent(url)}`);
     if (!proxyRes.ok) {
       throw new Error(`HTTP ${proxyRes.status}: Unable to retrieve M3U playlist`);
     }
