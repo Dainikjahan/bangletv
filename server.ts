@@ -64,6 +64,11 @@ async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
 
+  // Health probe for Google Cloud Run container liveness/readiness
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok', service: 'bengal-tv', uptime: process.uptime() });
+  });
+
   // Serve uploaded community/journalist videos
   app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -324,9 +329,20 @@ Video Source: "${String(sourceUrl).trim()}"`;
     });
   }
 
-  httpServer.listen(PORT, '0.0.0.0', () => {
+  const serverInstance = httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Bengal TV Broadcast Server running on http://0.0.0.0:${PORT}`);
   });
+
+  const shutdown = (signal: string) => {
+    console.log(`Received ${signal}. Gracefully closing HTTP server...`);
+    serverInstance.close(() => {
+      console.log('HTTP server closed successfully.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer();
