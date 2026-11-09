@@ -235,7 +235,7 @@ export default function BreakingNewsTicker() {
   return (
     <section
       aria-label="Breaking News Ticker"
-      className="w-full bg-white border-y border-[#E5E5EA] text-[#1D1D1F] select-none"
+      className="w-full bg-[#0D0D10] border-y border-[#202024] text-[#F5F5F7] select-none"
     >
       <div className="flex items-stretch min-h-[40px] text-xs overflow-hidden">
         {/* Left Live Breaking Label */}
@@ -254,14 +254,14 @@ export default function BreakingNewsTicker() {
         </div>
 
         {/* Center Scrolling Track */}
-        <div className="relative flex-1 overflow-hidden flex items-center bg-[#FAFAFC]">
+        <div className="relative flex-1 overflow-hidden flex items-center bg-[#0D0D10]">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#FAFAFC] to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#0D0D10] to-transparent z-10"
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#FAFAFC] to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0D0D10] to-transparent z-10"
           />
 
           <div
@@ -283,25 +283,25 @@ export default function BreakingNewsTicker() {
                       setFocusedIndex(idx);
                       setSelectedItem((curr) => (curr?.id === item.id ? null : item));
                     }}
-                    className="group inline-flex items-center gap-2 px-5 py-1 text-left hover:text-[#0066CC] focus-visible:outline-none focus-visible:text-[#0066CC] transition-colors cursor-pointer whitespace-nowrap"
+                    className="group inline-flex items-center gap-2 px-5 py-1 text-left hover:text-[#3898FF] focus-visible:outline-none focus-visible:text-[#3898FF] transition-colors cursor-pointer whitespace-nowrap"
                     title="Click to read dispatch summary"
                   >
-                    <span className="text-[11px] text-[#0066CC] font-semibold">
+                    <span className="text-[11px] text-[#3898FF] font-semibold">
                       {item.source}
                     </span>
-                    <span className="text-[#86868B]" aria-hidden="true">
+                    <span className="text-[#52525B]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="text-xs sm:text-[13px] font-medium text-[#1D1D1F] group-hover:text-[#0066CC] transition-colors">
+                    <span className="text-xs sm:text-[13px] font-medium text-white group-hover:text-[#3898FF] transition-colors">
                       {item.title}
                     </span>
-                    <span className="text-[#86868B]" aria-hidden="true">
+                    <span className="text-[#52525B]" aria-hidden="true">
                       ·
                     </span>
-                    <span className="text-[11px] font-mono tabular-nums text-[#6E6E73]">
+                    <span className="text-[11px] font-mono tabular-nums text-[#A1A1A6]">
                       {item.publishedAt}
                     </span>
-                    <span className="ml-4 text-[#D2D2D7]" aria-hidden="true">
+                    <span className="ml-4 text-[#3F3F46]" aria-hidden="true">
                       •
                     </span>
                   </button>
@@ -312,11 +312,11 @@ export default function BreakingNewsTicker() {
         </div>
 
         {/* Right Controls & Studio Clock */}
-        <div className="bg-white border-l border-[#E5E5EA] px-2.5 sm:px-3 flex items-center gap-1.5 shrink-0">
+        <div className="bg-[#0D0D10] border-l border-[#202024] px-2.5 sm:px-3 flex items-center gap-1.5 shrink-0">
           <div
             role="group"
             aria-label="News language filter"
-            className="hidden sm:flex items-center bg-[#EFEFF4] rounded-lg p-0.5 text-[10px]"
+            className="hidden sm:flex items-center bg-[#1C1C1F] rounded-lg p-0.5 text-[10px]"
           >
             {(
               [
@@ -334,8 +334,8 @@ export default function BreakingNewsTicker() {
                 }}
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   feedFilter === tab.id
-                    ? 'bg-white text-[#1D1D1F] shadow-2xs'
-                    : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+                    ? 'bg-[#2C2C30] text-white shadow-2xs'
+                    : 'text-[#A1A1A6] hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -346,7 +346,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => handleStepHeadline(-1)}
-            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-[#A1A1A6] hover:text-white hover:bg-[#1C1C1F] rounded-md transition-colors cursor-pointer"
             aria-label="Previous headline"
           >
             <ChevronLeft size={14} />
@@ -355,7 +355,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => setIsPaused((prev) => !prev)}
-            className="p-1.5 text-[#6E6E73] hover:text-[#0066CC] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-[#A1A1A6] hover:text-white hover:bg-[#1C1C1F] rounded-md transition-colors cursor-pointer"
             aria-label={isPaused ? 'Resume ticker' : 'Pause ticker'}
           >
             {isPaused ? <Play size={13} /> : <Pause size={13} />}
@@ -364,7 +364,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => handleStepHeadline(1)}
-            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-[#A1A1A6] hover:text-white hover:bg-[#1C1C1F] rounded-md transition-colors cursor-pointer"
             aria-label="Next headline"
           >
             <ChevronRight size={14} />
@@ -374,14 +374,14 @@ export default function BreakingNewsTicker() {
             type="button"
             onClick={fetchBreakingNews}
             disabled={isFetching}
-            className="p-1.5 text-[#6E6E73] hover:text-[#0066CC] hover:bg-[#F5F5F7] rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+            className="p-1.5 text-[#A1A1A6] hover:text-[#3898FF] hover:bg-[#1C1C1F] rounded-md transition-colors disabled:opacity-50 cursor-pointer"
             aria-label="Refresh breaking news"
           >
-            <RefreshCw size={13} className={isFetching ? 'animate-spin text-[#0066CC]' : ''} />
+            <RefreshCw size={13} className={isFetching ? 'animate-spin text-[#3898FF]' : ''} />
           </button>
 
-          <div className="hidden lg:flex items-center gap-1.5 pl-2 ml-1 border-l border-[#E5E5EA] text-[11px] font-mono tabular-nums text-[#6E6E73] whitespace-nowrap">
-            <Clock size={12} className="text-[#86868B] shrink-0" />
+          <div className="hidden lg:flex items-center gap-1.5 pl-2 ml-1 border-l border-[#202024] text-[11px] font-mono tabular-nums text-[#A1A1A6] whitespace-nowrap">
+            <Clock size={12} className="text-[#71717A] shrink-0" />
             <span>{clockText}</span>
           </div>
         </div>
@@ -389,10 +389,10 @@ export default function BreakingNewsTicker() {
 
       {/* Expandable Inline Headline Summary */}
       {selectedItem && (
-        <div className="bg-[#F5F5F7] border-t border-[#E5E5EA] px-4 sm:px-6 py-3.5 flex items-start justify-between gap-4">
+        <div className="bg-[#121214] border-t border-[#202024] px-4 sm:px-6 py-3.5 flex items-start justify-between gap-4">
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2 text-[11px] text-[#6E6E73] flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[#0066CC] font-semibold">
+            <div className="flex items-center gap-2 text-[11px] text-[#A1A1A6] flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[#3898FF] font-semibold">
                 <Globe size={12} />
                 <span>{selectedItem.source}</span>
               </span>
@@ -401,14 +401,14 @@ export default function BreakingNewsTicker() {
               <span aria-hidden="true">·</span>
               <span className="font-mono tabular-nums">{selectedItem.publishedAt}</span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono tabular-nums text-[#86868B]">
+              <span className="font-mono tabular-nums text-[#71717A]">
                 {focusedIndex + 1}/{visibleHeadlines.length}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-[#1D1D1F] leading-snug">
+            <h3 className="text-sm font-bold text-white leading-snug">
               {selectedItem.title}
             </h3>
-            <p className="text-xs text-[#6E6E73] leading-relaxed max-w-4xl">
+            <p className="text-xs text-[#A1A1A6] leading-relaxed max-w-4xl">
               {selectedItem.summary}
             </p>
           </div>
@@ -416,7 +416,7 @@ export default function BreakingNewsTicker() {
           <button
             type="button"
             onClick={() => setSelectedItem(null)}
-            className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#E5E5EA] rounded-lg transition-colors shrink-0 cursor-pointer"
+            className="p-1.5 text-[#A1A1A6] hover:text-white hover:bg-[#1C1C1F] rounded-lg transition-colors shrink-0 cursor-pointer"
             aria-label="Close headline summary"
           >
             <X size={15} />

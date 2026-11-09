@@ -438,8 +438,8 @@ export default function UniversalVideoPlayer({
       const h = canvas.height;
 
       const bg = ctx.createLinearGradient(0, 0, w, h);
-      bg.addColorStop(0, '#F5F5F7');
-      bg.addColorStop(1, '#E5E5EA');
+      bg.addColorStop(0, '#000000');
+      bg.addColorStop(1, '#0A0A0C');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
@@ -449,7 +449,7 @@ export default function UniversalVideoPlayer({
         const radius = (frame * 1.1 + i * 65) % 200;
         ctx.beginPath();
         ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(0, 102, 204, ${Math.max(0, 0.25 - radius / 200)})`;
+        ctx.strokeStyle = `rgba(0, 102, 204, ${Math.max(0, 0.35 - radius / 200)})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -459,18 +459,18 @@ export default function UniversalVideoPlayer({
         ctx.drawImage(logoImageRef.current, w / 2 - 64, h / 2 - 110, 128, 128);
       }
 
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = '#141416';
       ctx.fillRect(40, h - 104, w - 80, 68);
-      ctx.strokeStyle = '#D2D2D7';
+      ctx.strokeStyle = '#2C2C2E';
       ctx.lineWidth = 1;
       ctx.strokeRect(40, h - 104, w - 80, 68);
 
       ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Hind Siliguri", sans-serif';
-      ctx.fillStyle = '#1D1D1F';
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillText(channel.title, 60, h - 68);
 
       ctx.font = '13px "JetBrains Mono", monospace';
-      ctx.fillStyle = '#6E6E73';
+      ctx.fillStyle = '#A1A1A6';
       ctx.fillText(`BENGAL TV BROADCAST DESK · ${channel.categoryLabel || 'LIVE'}`, 60, h - 46);
 
       animId = requestAnimationFrame(render);

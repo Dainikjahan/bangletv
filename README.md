@@ -30,7 +30,7 @@ API keys and secrets must **never** be hardcoded or committed into source code. 
 | `NODE_ENV` | Recommended | `development` (local) / `production` | Set to `production` in container builds to serve static assets from `dist/`. |
 | `GEMINI_API_KEY` | Required for AI Audit | *(None)* | Google Gemini API key used by backend `/api/compliance/analyze`. Never exposed to client bundles. |
 | `VITE_API_BASE_URL` | Optional (for Pages) | `""` (relative `/api`) | Set to your Cloud Run URL (e.g. `https://bangletv-xxxxx.a.run.app`) if hosting frontend on Cloudflare Pages. |
-| `APP_URL` | Optional | `http://localhost:3000` | Canonical public URL of deployed application. |
+| `APP_URL` | Optional | `https://bangletv.com` | Canonical public URL of deployed application. |
 
 > **Security Discipline:**
 > - `GEMINI_API_KEY` is strictly used server-side in `server.ts`. It is **never** embedded into frontend bundles or Vite client defines.
@@ -170,11 +170,21 @@ Bengal TV integrates Firebase Firestore and Firebase Authentication. The active 
 }
 ```
 
-### Required Firebase Console Steps for Cloud Run:
-1. **Authorized Domains:**
-   After deploying to Cloud Run, copy your assigned Cloud Run URL (e.g. `https://bangletv-xxxxx-as.a.run.app`) and add it to:
-   - **Firebase Console** &rarr; **Authentication** &rarr; **Settings** &rarr; **Authorized domains** &rarr; **Add domain**.
-   - If using a custom domain (e.g. `tv.dainikjahan.com`), add the custom domain as well.
+### Required Domain & Firebase Setup for `bangletv.com`:
+1. **Authorized Domains in Firebase Console:**
+   Go to **Firebase Console** &rarr; **Authentication** &rarr; **Settings** &rarr; **Authorized domains** &rarr; **Add domain**:
+   - Add `bangletv.com`
+   - Add `www.bangletv.com`
+   - Add your Cloud Run domain (e.g. `bangletv-xxxxx-as.a.run.app`)
+
+2. **DNS Records to Add at Your Domain Registrar (for bangletv.com):**
+   - **Type A:** Name `@` &rarr; Points to Google Anycast IPs:
+     - `216.239.32.21`
+     - `216.239.34.21`
+     - `216.239.36.21`
+     - `216.239.38.21`
+   - **Type CNAME:** Name `www` &rarr; Points to `ghs.googlehosted.com.` (or your Cloudflare target)
+   - Cloud Run automatically provisions and auto-renews free SSL/TLS certificates via Let's Encrypt.
 2. **Security Rules:**
    The `firestore.rules` file enforces rigorous constraints:
    - Contributor profiles can only be written by the authenticated user (`request.auth.uid == userId`).

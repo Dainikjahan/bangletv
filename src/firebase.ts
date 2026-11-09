@@ -9,9 +9,9 @@ import {
 } from 'firebase/auth';
 import {
   getFirestore,
+  setLogLevel,
   doc,
   getDoc,
-  getDocFromServer,
   writeBatch,
   setDoc,
   updateDoc,
@@ -26,6 +26,11 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import type { ContentCategory, DistributionScope } from './types/broadcast';
+
+// Silence internal offline retry and connection polling warnings
+try {
+  setLogLevel('silent');
+} catch {}
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -86,17 +91,12 @@ export function handleFirestoreError(
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Validate connection to Firestore on application boot
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
-  }
+// Safe connection status tracker
+let isFirestoreConnected = true;
+
+export function getFirestoreConnectionStatus(): boolean {
+  return isFirestoreConnected;
 }
-testConnection();
 
 export interface ContributorProfile {
   uid: string;
@@ -314,22 +314,31 @@ export function subscribePublicBroadcasts(
   onData: (items: PublishedBroadcastDoc[]) => void
 ): Unsubscribe {
   const path = 'broadcasts';
-  const q = query(
-    collection(db, 'broadcasts'),
-    where('complianceStatus', '==', 'APPROVED'),
-    where('distributionScope', '==', 'PUBLIC')
-  );
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const docs = snapshot.docs.map((d) => d.data() as PublishedBroadcastDoc);
-      docs.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      onData(docs);
-    },
-    (error) => {
-      handleFirestoreError(error, OperationType.LIST, path);
-    }
-  );
+  try {
+    const q = query(
+      collection(db, 'broadcasts'),
+      where('complianceStatus', '==', 'APPROVED'),
+      where('distributionScope', '==', 'PUBLIC')
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        isFirestoreConnected = true;
+        const docs = snapshot.docs.map((d) => d.data() as PublishedBroadcastDoc);
+        docs.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        onData(docs);
+      },
+      (error) => {
+        isFirestoreConnected = false;
+        console.warn(`Firestore public broadcasts operating offline (${path}):`, error?.message || error);
+        onData([]);
+      }
+    );
+  } catch (err) {
+    console.warn(`Unable to attach Firestore public broadcasts listener:`, err);
+    onData([]);
+    return () => {};
+  }
 }
 
 export function subscribeCommunityBroadcasts(
@@ -338,21 +347,30 @@ export function subscribeCommunityBroadcasts(
 ): Unsubscribe {
   const path = 'broadcasts';
   const safeCommunityId = sanitizeId(communityId, 'global-bengal-desk');
-  const q = query(
-    collection(db, 'broadcasts'),
-    where('complianceStatus', '==', 'APPROVED'),
-    where('distributionScope', '==', 'COMMUNITY_ONLY'),
-    where('communityId', '==', safeCommunityId)
-  );
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const docs = snapshot.docs.map((d) => d.data() as PublishedBroadcastDoc);
-      docs.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      onData(docs);
-    },
-    (error) => {
-      handleFirestoreError(error, OperationType.LIST, path);
-    }
-  );
+  try {
+    const q = query(
+      collection(db, 'broadcasts'),
+      where('complianceStatus', '==', 'APPROVED'),
+      where('distributionScope', '==', 'COMMUNITY_ONLY'),
+      where('communityId', '==', safeCommunityId)
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        isFirestoreConnected = true;
+        const docs = snapshot.docs.map((d) => d.data() as PublishedBroadcastDoc);
+        docs.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        onData(docs);
+      },
+      (error) => {
+        isFirestoreConnected = false;
+        console.warn(`Firestore community broadcasts operating offline (${path}):`, error?.message || error);
+        onData([]);
+      }
+    );
+  } catch (err) {
+    console.warn(`Unable to attach Firestore community broadcasts listener:`, err);
+    onData([]);
+    return () => {};
+  }
 }

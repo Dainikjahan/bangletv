@@ -102,12 +102,12 @@ export default function TvViewerConsole({
 
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('bengaltv_saved_channels_v1');
+      const saved = localStorage.getItem('bengaltv_saved_channels_v2');
       return saved
         ? JSON.parse(saved)
-        : ['ch-bengal-tv-flagship', 'ch-somoy-tv', 'ch-abp-ananda', 'ch-dw-documentary'];
+        : ['ch-bengal-tv-flagship', 'ch-abc-news-live-us', 'ch-somoy-tv', 'ch-dw-documentary'];
     } catch {
-      return ['ch-bengal-tv-flagship', 'ch-somoy-tv'];
+      return ['ch-bengal-tv-flagship', 'ch-abc-news-live-us'];
     }
   });
 
@@ -419,18 +419,18 @@ export default function TvViewerConsole({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full bg-[#F5F5F7] text-[#1D1D1F] flex flex-col select-none overflow-x-hidden ${
+      className={`relative w-full bg-[#000000] text-[#F5F5F7] flex flex-col select-none overflow-x-hidden ${
         isFullscreen ? 'h-screen w-screen' : 'min-h-[calc(100vh-60px)]'
       }`}
     >
-      {/* 1. Broadcast Video Stage */}
-      <div className="w-full bg-[#E8E8ED] border-b border-[#E5E5EA] flex justify-center">
+      {/* 1. Broadcast Video Stage - Pure Cinematic Black Background */}
+      <div className="w-full bg-[#000000] border-b border-[#1A1A1E] flex justify-center">
         <div
           className={`relative w-full ${
             aspectRatio === '16:9'
               ? 'aspect-video max-w-[1440px]'
               : 'aspect-[4/3] max-w-[1040px]'
-          } max-h-[70vh] bg-[#0A0A0C] flex items-center justify-center overflow-hidden transition-all duration-200`}
+          } max-h-[70vh] bg-[#000000] flex items-center justify-center overflow-hidden transition-all duration-200`}
         >
           <UniversalVideoPlayer
             channel={activeChannel}
@@ -455,34 +455,34 @@ export default function TvViewerConsole({
       <BreakingNewsTicker />
 
       {/* 3. Studio Transport & In-Memory DVR Bar */}
-      <div className="bg-white border-b border-[#E5E5EA] px-4 sm:px-8 py-3 flex flex-col gap-2.5">
+      <div className="bg-[#0E0E12] border-b border-[#1F1F24] px-4 sm:px-8 py-3 flex flex-col gap-2.5">
         <div className="max-w-7xl w-full mx-auto flex flex-col gap-2.5">
           {/* Status Row */}
           <div className="flex items-center justify-between text-xs gap-3">
-            <div className="flex items-center gap-2 text-[#6E6E73] truncate">
+            <div className="flex items-center gap-2 text-[#98989F] truncate">
               {dvrState.timeshiftOffsetSec === 0 ? (
-                <span className="inline-flex items-center gap-1.5 text-[#D70015] font-bold shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-[#D70015] animate-live-pulse" />
+                <span className="inline-flex items-center gap-1.5 text-[#FF453A] font-bold shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-[#FF453A] animate-live-pulse" />
                   <span>LIVE</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[#0066CC] font-semibold font-mono tabular-nums shrink-0">
+                <span className="inline-flex items-center gap-1 text-[#3390EC] font-semibold font-mono tabular-nums shrink-0">
                   <History size={13} />
                   <span>DVR -{formatOffset(dvrState.timeshiftOffsetSec)}</span>
                 </span>
               )}
-              <span className="text-[#D2D2D7]">·</span>
-              <span className="font-bold text-[#1D1D1F] truncate text-xs sm:text-sm">
+              <span className="text-[#38383E]">·</span>
+              <span className="font-bold text-white truncate text-xs sm:text-sm">
                 {activeChannel.title}
               </span>
-              <span className="text-[#D2D2D7] hidden sm:inline">·</span>
-              <span className="text-[#6E6E73] shrink-0 text-xs hidden sm:inline">
+              <span className="text-[#38383E] hidden sm:inline">·</span>
+              <span className="text-[#98989F] shrink-0 text-xs hidden sm:inline">
                 {activeChannel.categoryLabel}
               </span>
             </div>
 
             <div className="flex items-center gap-3 shrink-0 text-xs">
-              <span className="hidden md:inline font-mono tabular-nums text-[#6E6E73]">
+              <span className="hidden md:inline font-mono tabular-nums text-[#8E8E93]">
                 CH {activeChannel.channelNumber || '100'} · {activeChannel.location}
               </span>
 
@@ -490,7 +490,7 @@ export default function TvViewerConsole({
                 <button
                   type="button"
                   onClick={handleJumpToLive}
-                  className="px-2.5 py-1 bg-[#D70015] hover:bg-[#B80012] text-white font-semibold rounded-lg text-[11px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap"
+                  className="px-2.5 py-1 bg-[#D70015] hover:bg-[#FF453A] text-white font-semibold rounded-lg text-[11px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap transition-colors"
                 >
                   <Radio size={11} />
                   <span>Return to Live</span>
@@ -513,21 +513,21 @@ export default function TvViewerConsole({
                   const newOffset = Math.max(0, dvrState.bufferDurationSec - targetProgress);
                   dvrRef.current?.seekOffset(newOffset);
                 }}
-                className="w-full h-1.5 bg-[#E5E5EA] rounded-lg appearance-none cursor-pointer accent-[#0066CC]"
+                className="w-full h-1.5 bg-[#24242A] rounded-lg appearance-none cursor-pointer accent-[#0066CC]"
                 title="Scrub live broadcast buffer"
               />
-              <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-[#86868B]">
+              <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-[#8E8E93]">
                 <span>-{formatOffset(dvrState.bufferDurationSec)} buffer</span>
-                <span className="text-[#6E6E73] font-medium">
+                <span className="text-[#AEAEB2] font-medium">
                   {dvrState.timeshiftOffsetSec === 0
                     ? 'Synchronized with live broadcast'
                     : `Timeshift offset -${formatOffset(dvrState.timeshiftOffsetSec)}`}
                 </span>
-                <span>LIVE</span>
+                <span className="text-[#3390EC]">LIVE</span>
               </div>
             </div>
           ) : (
-            <div className="text-[11px] text-[#6E6E73] flex items-center gap-1.5">
+            <div className="text-[11px] text-[#8E8E93] flex items-center gap-1.5">
               <Lock size={12} />
               <span>Timeshift buffer disabled by broadcaster policy.</span>
             </div>
@@ -539,7 +539,7 @@ export default function TvViewerConsole({
               <button
                 type="button"
                 onClick={() => switchChannelByDelta(-1)}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-xs font-semibold text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
                 title="Previous Channel"
               >
                 <ChevronUp size={15} />
@@ -549,7 +549,7 @@ export default function TvViewerConsole({
               <button
                 type="button"
                 onClick={() => switchChannelByDelta(1)}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-xs font-semibold text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
                 title="Next Channel"
               >
                 <span>CH +</span>
@@ -562,7 +562,7 @@ export default function TvViewerConsole({
                 type="button"
                 onClick={() => handleRewind(10)}
                 disabled={!dvrState.isAllowed}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] disabled:opacity-40 border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-medium text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] disabled:opacity-40 border border-[#2A2A30] rounded-xl text-xs font-mono tabular-nums font-medium text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
               >
                 <RotateCcw size={14} />
                 <span>-10s</span>
@@ -571,7 +571,7 @@ export default function TvViewerConsole({
               <button
                 type="button"
                 onClick={handleTogglePlayPause}
-                className="py-2 px-5 bg-[#1D1D1F] hover:bg-[#333336] text-white font-semibold rounded-xl flex items-center justify-center cursor-pointer transition-colors"
+                className="py-2 px-5 bg-[#0066CC] hover:bg-[#0077ED] text-white font-semibold rounded-xl flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
                 title="Play / Pause"
               >
                 {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-white" />}
@@ -581,7 +581,7 @@ export default function TvViewerConsole({
                 type="button"
                 onClick={() => handleForward(10)}
                 disabled={!dvrState.isAllowed || dvrState.timeshiftOffsetSec === 0}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] disabled:opacity-40 border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-medium text-[#1D1D1F] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] disabled:opacity-40 border border-[#2A2A30] rounded-xl text-xs font-mono tabular-nums font-medium text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
               >
                 <RotateCw size={14} />
                 <span>+10s</span>
@@ -593,33 +593,33 @@ export default function TvViewerConsole({
               <button
                 type="button"
                 onClick={() => setAspectRatio((prev) => (prev === '16:9' ? '4:3' : '16:9'))}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-mono tabular-nums font-semibold text-[#1D1D1F] flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-xs font-mono tabular-nums font-semibold text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors"
                 title="Toggle Aspect Ratio (16:9 / 4:3)"
               >
-                <Monitor size={14} className="text-[#0066CC]" />
+                <Monitor size={14} className="text-[#3390EC]" />
                 <span>{aspectRatio}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleToggleMute}
-                className="py-2 px-3 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-[#1D1D1F] flex items-center justify-center cursor-pointer"
+                className="py-2 px-3 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-white flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
                 title={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? (
-                  <VolumeX size={16} className="text-[#D70015]" />
+                  <VolumeX size={16} className="text-[#FF453A]" />
                 ) : (
-                  <Volume2 size={16} className="text-[#1F7A3F]" />
+                  <Volume2 size={16} className="text-[#30D158]" />
                 )}
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-                className={`py-2 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                className={`py-2 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs transition-colors ${
                   isDrawerOpen
                     ? 'bg-[#0066CC] text-white'
-                    : 'bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F]'
+                    : 'bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] text-white'
                 }`}
                 title="Open Full Channel Directory"
               >
@@ -635,7 +635,7 @@ export default function TvViewerConsole({
       <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
         {/* Segmented Regional & Editorial Filter Bar + Search */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-[#EFEFF4] p-1 rounded-xl">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-[#121216] border border-[#222228] p-1 rounded-xl">
             {EDITORIAL_TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -643,8 +643,8 @@ export default function TvViewerConsole({
                 onClick={() => setSelectedCategory(tab.id)}
                 className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                   selectedCategory === tab.id
-                    ? 'bg-white text-[#1D1D1F] shadow-2xs'
-                    : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+                    ? 'bg-[#22222A] text-white shadow-2xs'
+                    : 'text-[#8E8E93] hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -655,24 +655,24 @@ export default function TvViewerConsole({
           <div className="relative w-full lg:w-72 shrink-0">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E73]"
             />
             <input
               type="text"
               placeholder="Search Bengali, US, EU, or Documentary..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-[#E5E5EA] rounded-xl pl-9 pr-3 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#0066CC]"
+              className="w-full bg-[#121216] border border-[#222228] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-[#6E6E73] focus:outline-none focus:border-[#0066CC] shadow-2xs transition-colors"
             />
           </div>
         </div>
 
         {/* Channel Grid / Horizontal Strip */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs text-[#6E6E73]">
-            <div className="font-semibold text-[#1D1D1F]">
+          <div className="flex items-center justify-between text-xs text-[#8E8E93]">
+            <div className="font-semibold text-white">
               Verified Broadcast Lineup ·{' '}
-              <span className="font-mono tabular-nums text-[#6E6E73]">
+              <span className="font-mono tabular-nums text-[#8E8E93]">
                 {filteredChannels.length} channels
               </span>
             </div>
@@ -681,15 +681,15 @@ export default function TvViewerConsole({
               <button
                 type="button"
                 onClick={onOpenM3uModal}
-                className="text-[#0066CC] hover:underline font-semibold cursor-pointer whitespace-nowrap"
+                className="text-[#3390EC] hover:underline font-semibold cursor-pointer whitespace-nowrap"
               >
                 + Load M3U Regional Packs
               </button>
-              <span className="text-[#D2D2D7]">·</span>
+              <span className="text-[#333338]">·</span>
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(true)}
-                className="text-[#1D1D1F] hover:text-[#0066CC] font-semibold cursor-pointer whitespace-nowrap"
+                className="text-[#AEAEB2] hover:text-white font-semibold cursor-pointer whitespace-nowrap transition-colors"
               >
                 Directory View →
               </button>
@@ -697,7 +697,7 @@ export default function TvViewerConsole({
           </div>
 
           {filteredChannels.length === 0 ? (
-            <div className="bg-white border border-[#E5E5EA] rounded-2xl p-8 text-center text-xs text-[#6E6E73]">
+            <div className="bg-[#121216] border border-[#222228] rounded-2xl p-8 text-center text-xs text-[#8E8E93] shadow-2xs">
               No channels match your current filter. Select another regional desk or load additional streams from the M3U Directory.
             </div>
           ) : (
@@ -711,15 +711,15 @@ export default function TvViewerConsole({
                     onClick={() => onSelectChannel(c)}
                     className={`p-3.5 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all ${
                       isActive
-                        ? 'bg-white border-[#0066CC] ring-2 ring-[#0066CC]/15 shadow-sm'
-                        : 'bg-white border-[#E5E5EA] hover:border-[#D2D2D7] shadow-2xs'
+                        ? 'bg-[#121929] border-[#0066CC] ring-2 ring-[#0066CC]/25 shadow-md'
+                        : 'bg-[#121216] border-[#202026] hover:bg-[#18181E] hover:border-[#303038] shadow-2xs'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#1A1A20] border border-[#282832] flex items-center justify-center overflow-hidden shrink-0">
                         <ChannelLogoAvatar logoUrl={c.logoUrl} isActive={isActive} />
                       </div>
-                      <span className="text-[10px] font-mono tabular-nums text-[#86868B]">
+                      <span className="text-[10px] font-mono tabular-nums text-[#8E8E93]">
                         CH {c.channelNumber || '100'}
                       </span>
                     </div>
@@ -727,12 +727,12 @@ export default function TvViewerConsole({
                     <div>
                       <div
                         className={`text-xs font-bold line-clamp-2 leading-snug ${
-                          isActive ? 'text-[#0066CC]' : 'text-[#1D1D1F]'
+                          isActive ? 'text-[#3390EC]' : 'text-white'
                         }`}
                       >
                         {c.title}
                       </div>
-                      <div className="text-[11px] text-[#6E6E73] truncate mt-1">
+                      <div className="text-[11px] text-[#8E8E93] truncate mt-1">
                         {c.location}
                       </div>
                     </div>
@@ -745,7 +745,7 @@ export default function TvViewerConsole({
 
         {/* Active Channel Dossier & Contributor Studio Banner */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-8 bg-white border border-[#E5E5EA] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
+          <div className="lg:col-span-8 bg-[#121216] border border-[#222228] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -753,9 +753,9 @@ export default function TvViewerConsole({
                     src={activeChannel.logoUrl || BENGAL_TV_OFFICIAL_LOGO}
                     alt=""
                     referrerPolicy="no-referrer"
-                    className="w-8 h-8 rounded-lg object-contain bg-[#F5F5F7] border border-[#E5E5EA] p-0.5 shrink-0"
+                    className="w-8 h-8 rounded-lg object-contain bg-[#1A1A20] border border-[#282832] p-0.5 shrink-0 shadow-2xs"
                   />
-                  <h2 className="text-base font-bold text-[#1D1D1F] truncate">
+                  <h2 className="text-base font-bold text-white truncate">
                     {activeChannel.title}
                   </h2>
                 </div>
@@ -763,38 +763,38 @@ export default function TvViewerConsole({
                 <button
                   type="button"
                   onClick={() => toggleFavorite(activeChannel.id)}
-                  className="p-1.5 text-[#86868B] hover:text-[#0066CC] rounded-lg hover:bg-[#F5F5F7] cursor-pointer shrink-0"
+                  className="p-1.5 text-[#8E8E93] hover:text-[#3390EC] rounded-lg hover:bg-[#1C1C22] transition-colors cursor-pointer shrink-0"
                   title="Save Channel"
                 >
                   <Star
                     size={16}
                     className={
                       favorites.includes(activeChannel.id)
-                        ? 'fill-[#0066CC] text-[#0066CC]'
+                        ? 'fill-[#3390EC] text-[#3390EC]'
                         : ''
                     }
                   />
                 </button>
               </div>
 
-              <div className="text-xs text-[#6E6E73]">
+              <div className="text-xs text-[#8E8E93]">
                 {activeChannel.location} · {activeChannel.categoryLabel} ·{' '}
-                <span className="text-[#1F7A3F] font-medium">
+                <span className="text-[#30D158] font-medium">
                   Editorial & Stream Mapping Verified
                 </span>
               </div>
 
-              <p className="text-xs text-[#6E6E73] leading-relaxed">
+              <p className="text-xs text-[#AEAEB2] leading-relaxed">
                 {activeChannel.description}
               </p>
             </div>
 
-            <div className="pt-3 border-t border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-[#6E6E73]">
+            <div className="pt-3 border-t border-[#222228] flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-[#8E8E93]">
                 {activeChannel.currentProgramTitle ? (
                   <>
                     Now On Air:{' '}
-                    <strong className="text-[#1D1D1F]">
+                    <strong className="text-white">
                       {activeChannel.currentProgramTitle}
                     </strong>
                   </>
@@ -807,7 +807,7 @@ export default function TvViewerConsole({
                 <button
                   type="button"
                   onClick={onOpenEpgModal}
-                  className="px-3.5 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  className="px-3.5 py-2 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
                 >
                   <Layers size={14} />
                   <span>Program Guide</span>
@@ -815,7 +815,7 @@ export default function TvViewerConsole({
                 <button
                   type="button"
                   onClick={onOpenM3uModal}
-                  className="px-3.5 py-2 bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] rounded-xl text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  className="px-3.5 py-2 bg-[#1C1C21] hover:bg-[#28282E] border border-[#2A2A30] rounded-xl text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
                 >
                   <Globe size={14} />
                   <span>M3U Directory</span>
@@ -825,16 +825,16 @@ export default function TvViewerConsole({
           </div>
 
           {/* Citizen Journalism & Documentary Upload Callout */}
-          <div className="lg:col-span-4 bg-white border border-[#E5E5EA] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
+          <div className="lg:col-span-4 bg-[#121216] border border-[#222228] rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#1F7A3F]">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#30D158]">
                 <ShieldCheck size={15} />
                 <span>AI-Vetted Global & Community Broadcasts</span>
               </div>
-              <h3 className="text-base font-bold text-[#1D1D1F]">
+              <h3 className="text-base font-bold text-white">
                 Broadcast Your Field Report or Documentary
               </h3>
-              <p className="text-xs text-[#6E6E73] leading-relaxed">
+              <p className="text-xs text-[#AEAEB2] leading-relaxed">
                 Registered contributors worldwide can upload journalistic news and humanitarian documentaries. Approved videos are published immediately for community or global viewing.
               </p>
             </div>
@@ -842,7 +842,7 @@ export default function TvViewerConsole({
             <button
               type="button"
               onClick={onOpenUploadStudio}
-              className="w-full py-2.5 px-4 bg-[#0066CC] hover:bg-[#0055B3] text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+              className="w-full py-2.5 px-4 bg-[#0066CC] hover:bg-[#0077ED] text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
             >
               <Upload size={14} />
               <span>Open Upload & Contributor Studio</span>
@@ -855,14 +855,14 @@ export default function TvViewerConsole({
       {isDrawerOpen && (
         <aside
           aria-label="Channel Directory Drawer"
-          className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white/98 backdrop-blur-2xl border-l border-[#E5E5EA] z-50 flex flex-col shadow-2xl"
+          className="fixed inset-y-0 right-0 w-full sm:w-96 bg-[#101014]/98 backdrop-blur-2xl border-l border-[#222228] z-50 flex flex-col shadow-2xl"
         >
-          <div className="p-4 border-b border-[#E5E5EA] flex items-center justify-between">
+          <div className="p-4 border-b border-[#222228] flex items-center justify-between">
             <div>
-              <h2 className="font-bold text-sm text-[#1D1D1F]">
+              <h2 className="font-bold text-sm text-white">
                 Channel Directory ({filteredChannels.length})
               </h2>
-              <span className="text-[11px] text-[#6E6E73]">
+              <span className="text-[11px] text-[#8E8E93]">
                 Bengali · American · European · Documentary
               </span>
             </div>
@@ -873,32 +873,32 @@ export default function TvViewerConsole({
                   setIsDrawerOpen(false);
                   onOpenM3uModal();
                 }}
-                className="px-2.5 py-1 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#0066CC] border border-[#E5E5EA] rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap"
+                className="px-2.5 py-1 bg-[#1C1C21] hover:bg-[#28282E] text-[#3390EC] border border-[#2A2A30] rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap"
               >
                 + M3U
               </button>
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(false)}
-                className="p-1.5 text-[#6E6E73] hover:text-[#1D1D1F] rounded-lg bg-[#F5F5F7] cursor-pointer"
+                className="p-1.5 text-[#8E8E93] hover:text-white rounded-lg bg-[#1C1C21] cursor-pointer"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          <div className="p-3 border-b border-[#E5E5EA]">
+          <div className="p-3 border-b border-[#222228]">
             <div className="relative">
               <Search
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E73]"
               />
               <input
                 type="text"
                 placeholder="Filter by channel name, country, or number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#F5F5F7] border border-[#E5E5EA] rounded-xl pl-9 pr-3 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+                className="w-full bg-[#18181E] border border-[#282832] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-[#6E6E73] focus:outline-none focus:border-[#0066CC] focus:bg-[#1E1E26]"
               />
             </div>
           </div>
@@ -916,13 +916,13 @@ export default function TvViewerConsole({
                   className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
                     isActive
                       ? 'bg-[#0066CC] text-white font-semibold'
-                      : 'hover:bg-[#F5F5F7] text-[#1D1D1F]'
+                      : 'hover:bg-[#1A1A20] text-[#E5E5EA]'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
                     <span
                       className={`font-mono tabular-nums text-xs w-8 shrink-0 ${
-                        isActive ? 'text-white/85' : 'text-[#86868B]'
+                        isActive ? 'text-white/85' : 'text-[#8E8E93]'
                       }`}
                     >
                       {c.channelNumber || '100'}
@@ -931,7 +931,7 @@ export default function TvViewerConsole({
                       <div className="text-xs font-semibold truncate">{c.title}</div>
                       <div
                         className={`text-[10px] truncate ${
-                          isActive ? 'text-white/85' : 'text-[#6E6E73]'
+                          isActive ? 'text-white/85' : 'text-[#8E8E93]'
                         }`}
                       >
                         {c.location} · {c.categoryLabel}
@@ -953,8 +953,8 @@ export default function TvViewerConsole({
                         favorites.includes(c.id)
                           ? isActive
                             ? 'fill-white text-white'
-                            : 'fill-[#0066CC] text-[#0066CC]'
-                          : 'opacity-40'
+                            : 'fill-[#3390EC] text-[#3390EC]'
+                          : 'opacity-40 text-[#6E6E73]'
                       }
                     />
                   </button>
@@ -967,7 +967,7 @@ export default function TvViewerConsole({
                 <button
                   type="button"
                   onClick={() => setDrawerLimit((prev) => prev + 100)}
-                  className="w-full py-2.5 bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-semibold text-xs rounded-xl border border-[#E5E5EA] cursor-pointer"
+                  className="w-full py-2.5 bg-[#18181E] hover:bg-[#222228] text-white font-semibold text-xs rounded-xl border border-[#282832] cursor-pointer"
                 >
                   Show 100 more ({filteredChannels.length - drawerLimit} remaining)
                 </button>

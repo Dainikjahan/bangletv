@@ -11,7 +11,22 @@ import { GoogleGenAI, Type } from '@google/genai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = Number(process.env.PORT) || 3000;
+function resolvePort(): number {
+  // Check CLI arguments for --port (e.g. passed by AI Studio dev supervisor)
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = Number(process.argv[portArgIndex + 1]);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  // In development mode, always bind to 3000 for AI Studio dev server & iframe
+  if (process.env.NODE_ENV !== 'production') {
+    return 3000;
+  }
+  // In production (Cloud Run), listen on process.env.PORT or default to 8080
+  return Number(process.env.PORT) || 8080;
+}
+
+const PORT = resolvePort();
 const UPLOADS_DIR = path.resolve(__dirname, 'uploads');
 
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -328,6 +343,14 @@ Video Source: "${String(sourceUrl).trim()}"`;
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  httpServer.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use.`);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
 
   const serverInstance = httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Bengal TV Broadcast Server running on http://0.0.0.0:${PORT}`);
