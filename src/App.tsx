@@ -1,8 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import { Tv, Layers, Upload, Scale, UserCheck, Cloud, Globe } from 'lucide-react';
 
-import { BroadcastItem } from './types/broadcast';
+import {
+  BroadcastItem,
+  isVisibleInPublicGuide,
+  LicenceType,
+  UserRole,
+} from './types/broadcast';
 import {
   PRELOADED_IPTV_CHANNELS,
   BENGAL_TV_OFFICIAL_LOGO,
@@ -20,16 +25,65 @@ import EpgGrid from './components/EpgGrid';
 import M3uXmltvManager from './components/M3uXmltvManager';
 import ConstitutionViewer from './components/ConstitutionViewer';
 import TurbiflyDomainHub from './components/TurbiflyDomainHub';
+import RightsLedger from './components/RightsLedger';
 import CommunityBroadcastStudio, {
   mapPublishedDocToBroadcastItem,
+  type BroadcastRightsOverride,
+  type BroadcastRightsSubmission,
 } from './components/CommunityBroadcastStudio';
 
-type NavigationTab = 'tv' | 'studio' | 'charter';
+type NavigationTab = 'tv' | 'studio' | 'charter' | 'rights-ledger';
 
 const STORAGE_KEY_CHANNELS = 'bengaltv_editorial_channels_v6';
+const STORAGE_KEY_RIGHTS_OVERRIDES = 'bengaltv_rights_overrides_v1';
+const STORAGE_KEY_STUDIO_SUBMISSIONS = 'bengaltv_studio_submissions_v1';
+const STORAGE_KEY_ROLE = 'bengaltv_user_role';
+
+function isValidRole(value: string | null | undefined): value is UserRole {
+  return (
+    value === 'viewer' ||
+    value === 'contributor' ||
+    value === 'editor' ||
+    value === 'admin'
+  );
+}
+
+function resolveUserRole(user: User | null): UserRole {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryRole = params.get('role');
+    if (isValidRole(queryRole)) {
+      return queryRole;
+    }
+    const storedRole = localStorage.getItem(STORAGE_KEY_ROLE);
+    if (isValidRole(storedRole)) {
+      return storedRole;
+    }
+  } catch {}
+
+  if (!user) return 'viewer';
+  return 'contributor';
+}
+
+function getRequestedInitialTab(): NavigationTab {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryTab = params.get('tab');
+    const hash = window.location.hash.replace(/^#/, '');
+    const candidate = queryTab || hash;
+    if (
+      candidate === 'studio' ||
+      candidate === 'charter' ||
+      candidate === 'rights-ledger'
+    ) {
+      return candidate;
+    }
+  } catch {}
+  return 'tv';
+}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('tv');
+  const [activeTab, setActiveTab] = useState<NavigationTab>(getRequestedInitialTab);
 
   // Core + user-imported M3U channels (free of legacy Indian channel overrides)
   const [baseChannels, setBaseChannels] = useState<BroadcastItem[]>(() => {
@@ -46,11 +100,40 @@ export default function App() {
               typeof c.videoUrl === 'string'
           );
           if (valid.length > 0) {
-            // Ensure flagship Bengal TV and American news streams stay synced with verified M3U endpoints
+            // Ensure flagship Bengal TV, American news streams, and rights metadata stay synced
+            const preloadedById = new Map(PRELOADED_IPTV_CHANNELS.map((p) => [p.id, p]));
             return valid.map((ch: BroadcastItem) => {
-              if (ch.id === 'ch-bengal-tv-flagship') {
+              const target =
+                ch.id === 'ch-abp-ananda-live' || ch.id === 'ch-kolkata-tv'
+                  ? PRELOADED_IPTV_CHANNELS[1]
+                  : ch;
+              const fallback = preloadedById.get(target.id);
+              const validLicenceType: LicenceType | '' =
+                target.licenceType === 'OWNED' ||
+                target.licenceType === 'PARTNER' ||
+                target.licenceType === 'PUBLIC'
+                  ? target.licenceType
+                  : fallback?.licenceType || '';
+              const withRights: BroadcastItem = {
+                ...target,
+                rightsHolder:
+                  target.rightsHolder !== undefined
+                    ? target.rightsHolder
+                    : (fallback?.rightsHolder ?? ''),
+                licenceType: validLicenceType,
+                licenceUrl:
+                  target.licenceUrl !== undefined
+                    ? target.licenceUrl
+                    : (fallback?.licenceUrl ?? ''),
+                territory: target.territory ?? fallback?.territory ?? target.location ?? 'Global',
+                expiry:
+                  target.expiry !== undefined
+                    ? target.expiry
+                    : (fallback?.expiry ?? ''),
+              };
+              if (withRights.id === 'ch-bengal-tv-flagship') {
                 return {
-                  ...ch,
+                  ...withRights,
                   title: PRELOADED_IPTV_CHANNELS[0].title,
                   logoUrl: BENGAL_TV_OFFICIAL_LOGO,
                   videoUrl: PRELOADED_IPTV_CHANNELS[0].videoUrl,
@@ -58,10 +141,7 @@ export default function App() {
                   backupStreams: PRELOADED_IPTV_CHANNELS[0].backupStreams,
                 };
               }
-              if (ch.id === 'ch-abp-ananda-live' || ch.id === 'ch-kolkata-tv') {
-                return PRELOADED_IPTV_CHANNELS[1];
-              }
-              return ch;
+              return withRights;
             });
           }
         }
@@ -70,12 +150,58 @@ export default function App() {
     return PRELOADED_IPTV_CHANNELS;
   });
 
+  // Rights overrides & studio submissions (REVIEW -> Editor approval workflow)
+  const [rightsOverrides, setRightsOverrides] = useState<Record<string, BroadcastRightsOverride>>(
+    () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_RIGHTS_OVERRIDES);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
+      } catch {}
+      return {};
+    }
+  );
+
+  const [localStudioSubmissions, setLocalStudioSubmissions] = useState<BroadcastItem[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_STUDIO_SUBMISSIONS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
   // Firebase Auth & Contributor Profile state
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [contributorProfile, setContributorProfile] = useState<ContributorProfile | null>(null);
   const [publicBroadcasts, setPublicBroadcasts] = useState<PublishedBroadcastDoc[]>([]);
   const [communityBroadcasts, setCommunityBroadcasts] = useState<PublishedBroadcastDoc[]>([]);
+
+  const userRole = useMemo<UserRole>(() => resolveUserRole(currentUser), [currentUser]);
+  const canAccessRightsLedger = userRole === 'admin' || userRole === 'editor';
+
+  const redirectHome = useCallback(() => {
+    setActiveTab('tv');
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('tab') === 'rights-ledger' || url.hash === '#rights-ledger') {
+        url.searchParams.delete('tab');
+        if (url.hash === '#rights-ledger') url.hash = '';
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'rights-ledger' && !canAccessRightsLedger) {
+      redirectHome();
+    }
+  }, [activeTab, canAccessRightsLedger, redirectHome]);
 
   useEffect(() => {
     const unsubAuth = subscribeAuthState(async (user) => {
@@ -120,6 +246,121 @@ export default function App() {
     return () => unsubComm();
   }, [currentUser, contributorProfile?.communityId]);
 
+  const handleSubmitBroadcastRights = useCallback(
+    (submission: BroadcastRightsSubmission) => {
+      const enforceReview =
+        userRole !== 'editor' &&
+        userRole !== 'admin' &&
+        (submission.requiresReview ||
+          submission.requestedLicenceType === 'OWNED' ||
+          submission.requestedLicenceType === 'PARTNER');
+
+      const override: BroadcastRightsOverride = {
+        rightsHolder: submission.rightsHolder,
+        licenceType: enforceReview ? '' : submission.requestedLicenceType,
+        licenceUrl: submission.licenceUrl,
+        territory: submission.territory,
+        expiry: submission.expiry,
+        rightsStatus: enforceReview ? 'REVIEW' : 'APPROVED',
+        requestedLicenceType: submission.requestedLicenceType,
+      };
+
+      setRightsOverrides((prev) => {
+        const next = { ...prev, [submission.id]: override };
+        try {
+          localStorage.setItem(STORAGE_KEY_RIGHTS_OVERRIDES, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      if (!currentUser) {
+        const isHls = submission.videoUrl.includes('.m3u8');
+        const newItem: BroadcastItem = {
+          id: submission.id,
+          channelNumber: 800 + localStudioSubmissions.length + 1,
+          title: submission.title,
+          category: submission.category,
+          categoryLabel: `${submission.communityName} · Studio Dispatch`,
+          reporter: submission.authorName,
+          location: submission.location,
+          duration: 1800,
+          videoUrl: submission.videoUrl,
+          hlsUrl: isHls ? submission.videoUrl : undefined,
+          streamType: isHls ? 'hls' : 'direct',
+          sourceNetwork: submission.communityName,
+          thumbnailUrl: '',
+          logoUrl: BENGAL_TV_OFFICIAL_LOGO,
+          regulatoryApproved: true,
+          complianceScore: submission.complianceScore,
+          uploadedAt: enforceReview ? 'Pending Rights Review' : 'AI-Verified Studio Dispatch',
+          views: 1,
+          isLive: submission.category === 'LIVE_NEWS',
+          description: submission.description,
+          openSourceLicense: 'Bengal TV Verified Contributor Charter',
+          ownerCommunityId: submission.communityId,
+          communityName: submission.communityName,
+          distributionScope: submission.distributionScope,
+          rightsHolder: submission.rightsHolder,
+          licenceType: enforceReview ? '' : submission.requestedLicenceType,
+          licenceUrl: submission.licenceUrl,
+          territory: submission.territory,
+          expiry: submission.expiry,
+          rightsStatus: enforceReview ? 'REVIEW' : 'APPROVED',
+          requestedLicenceType: submission.requestedLicenceType,
+        };
+        setLocalStudioSubmissions((prev) => {
+          const next = [newItem, ...prev];
+          try {
+            localStorage.setItem(STORAGE_KEY_STUDIO_SUBMISSIONS, JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+      }
+    },
+    [userRole, currentUser, localStudioSubmissions.length]
+  );
+
+  const handleApproveReviewItem = useCallback(
+    (itemId: string, approvedLicenceType: LicenceType) => {
+      if (userRole !== 'editor' && userRole !== 'admin') return;
+
+      setRightsOverrides((prev) => {
+        const existing = prev[itemId] || {};
+        const next = {
+          ...prev,
+          [itemId]: {
+            ...existing,
+            licenceType: approvedLicenceType,
+            requestedLicenceType: approvedLicenceType,
+            rightsStatus: 'APPROVED' as const,
+          },
+        };
+        try {
+          localStorage.setItem(STORAGE_KEY_RIGHTS_OVERRIDES, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      setLocalStudioSubmissions((prev) => {
+        const next = prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                licenceType: approvedLicenceType,
+                requestedLicenceType: approvedLicenceType,
+                rightsStatus: 'APPROVED' as const,
+              }
+            : item
+        );
+        try {
+          localStorage.setItem(STORAGE_KEY_STUDIO_SUBMISSIONS, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
+    [userRole]
+  );
+
   // Merge AI-approved global & community uploads seamlessly into playable channel lineup
   const channels = useMemo<BroadcastItem[]>(() => {
     const uploadedDocsMap = new Map<string, PublishedBroadcastDoc>();
@@ -127,34 +368,55 @@ export default function App() {
     communityBroadcasts.forEach((doc) => uploadedDocsMap.set(doc.id, doc));
 
     const uploadedItems = Array.from(uploadedDocsMap.values()).map((doc, idx) =>
-      mapPublishedDocToBroadcastItem(doc, idx + 1)
+      mapPublishedDocToBroadcastItem(doc, idx + 1, rightsOverrides[doc.id])
     );
+    const localItems = localStudioSubmissions.map((item) => {
+      const ov = rightsOverrides[item.id];
+      return ov ? { ...item, ...ov } : item;
+    });
 
-    if (uploadedItems.length === 0) return baseChannels;
-    return [baseChannels[0], ...uploadedItems, ...baseChannels.slice(1)];
-  }, [baseChannels, publicBroadcasts, communityBroadcasts]);
+    const mergedExtra = [...localItems, ...uploadedItems];
+    if (mergedExtra.length === 0) return baseChannels;
+    return [baseChannels[0], ...mergedExtra, ...baseChannels.slice(1)];
+  }, [baseChannels, publicBroadcasts, communityBroadcasts, localStudioSubmissions, rightsOverrides]);
+
+  const pendingReviewItems = useMemo<BroadcastItem[]>(
+    () => channels.filter((ch) => ch.rightsStatus === 'REVIEW'),
+    [channels]
+  );
+
+  // Public guide items exclude entries whose rightsHolder or licenceUrl is empty (hidden, not deleted)
+  const publicGuideChannels = useMemo<BroadcastItem[]>(
+    () => channels.filter(isVisibleInPublicGuide),
+    [channels]
+  );
 
   const [activeChannel, setActiveChannel] = useState<BroadcastItem>(
     () => PRELOADED_IPTV_CHANNELS[0]
   );
 
-  // Support deep-link sharing (?watch=<broadcastId>)
+  // Support deep-link sharing (?watch=<broadcastId>) for visible public guide channels
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const watchId = params.get('watch');
     if (!watchId) return;
-    const target = channels.find((c) => c.id === watchId);
+    const target = publicGuideChannels.find((c) => c.id === watchId);
     if (target && activeChannel.id !== target.id) {
       setActiveChannel(target);
       setActiveTab('tv');
     }
-  }, [channels, activeChannel.id]);
+  }, [publicGuideChannels, activeChannel.id]);
 
-  // Keep active channel stream metadata synchronized
+  // Keep active channel stream metadata synchronized and ensure hidden items aren't left active
   useEffect(() => {
-    const fresh = channels.find((c) => c && c.id === activeChannel.id);
+    const fresh = publicGuideChannels.find((c) => c && c.id === activeChannel.id);
+    if (!fresh) {
+      if (publicGuideChannels.length > 0 && publicGuideChannels[0].id !== activeChannel.id) {
+        setActiveChannel(publicGuideChannels[0]);
+      }
+      return;
+    }
     if (
-      fresh &&
       fresh !== activeChannel &&
       (fresh.youtubeId !== activeChannel.youtubeId ||
         fresh.youtubeChannelId !== activeChannel.youtubeChannelId ||
@@ -163,7 +425,7 @@ export default function App() {
     ) {
       setActiveChannel(fresh);
     }
-  }, [channels, activeChannel]);
+  }, [publicGuideChannels, activeChannel]);
 
   const [isEpgModalOpen, setIsEpgModalOpen] = useState<boolean>(false);
   const [isM3uModalOpen, setIsM3uModalOpen] = useState<boolean>(false);
@@ -325,6 +587,22 @@ export default function App() {
           >
             Charter & Standards
           </button>
+
+          {canAccessRightsLedger && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('rights-ledger')}
+              className={`py-1 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'rights-ledger'
+                  ? 'text-[#0066CC] font-bold'
+                  : activeTab === 'tv'
+                  ? 'text-[#8E8E93] hover:text-white'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+              }`}
+            >
+              Rights Ledger
+            </button>
+          )}
         </nav>
 
         {/* Zone 3: Account & Custom Domain Gateway */}
@@ -368,7 +646,7 @@ export default function App() {
       <main className="flex-1 flex flex-col">
         {activeTab === 'tv' && (
           <TvViewerConsole
-            channels={channels}
+            channels={publicGuideChannels}
             activeChannel={activeChannel}
             onSelectChannel={(ch) => setActiveChannel(ch)}
             onOpenEpgModal={() => setIsEpgModalOpen(true)}
@@ -382,17 +660,33 @@ export default function App() {
           <CommunityBroadcastStudio
             currentUser={currentUser}
             contributorProfile={contributorProfile}
+            userRole={userRole}
+            rightsOverrides={rightsOverrides}
+            pendingReviewItems={pendingReviewItems}
             onProfileUpdated={(p) => setContributorProfile(p)}
             publicBroadcasts={publicBroadcasts}
             communityBroadcasts={communityBroadcasts}
             onWatchBroadcast={(item) => {
-              setActiveChannel(item);
-              setActiveTab('tv');
+              if (isVisibleInPublicGuide(item)) {
+                setActiveChannel(item);
+                setActiveTab('tv');
+              }
             }}
+            onSubmitBroadcastRights={handleSubmitBroadcastRights}
+            onApproveReviewItem={handleApproveReviewItem}
           />
         )}
 
         {activeTab === 'charter' && <ConstitutionViewer />}
+
+        {activeTab === 'rights-ledger' && (
+          <RightsLedger
+            items={channels}
+            userRole={userRole}
+            onRedirectHome={redirectHome}
+            onApproveReviewItem={handleApproveReviewItem}
+          />
+        )}
       </main>
 
       {/* ============================================================== */}
@@ -459,6 +753,23 @@ export default function App() {
           <Scale size={18} />
           <span>Charter</span>
         </button>
+
+        {canAccessRightsLedger && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('rights-ledger')}
+            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-lg text-[10px] font-semibold cursor-pointer whitespace-nowrap ${
+              activeTab === 'rights-ledger'
+                ? 'text-[#0066CC]'
+                : activeTab === 'tv'
+                ? 'text-[#8E8E93]'
+                : 'text-[#6E6E73]'
+            }`}
+          >
+            <Cloud size={18} />
+            <span>Rights</span>
+          </button>
+        )}
       </nav>
 
       {/* ============================================================== */}
@@ -466,7 +777,7 @@ export default function App() {
       {/* ============================================================== */}
       {isEpgModalOpen && (
         <EpgGrid
-          channels={channels}
+          channels={publicGuideChannels}
           activeChannel={activeChannel}
           onSelectChannel={(ch) => setActiveChannel(ch)}
           onClose={() => setIsEpgModalOpen(false)}

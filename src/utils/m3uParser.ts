@@ -1,4 +1,4 @@
-import { BroadcastItem, ContentCategory } from '../types/broadcast';
+import { BroadcastItem, ContentCategory, LicenceType } from '../types/broadcast';
 
 const BLOCKED_HOST_PATTERNS = [
   /^localhost$/i,
@@ -196,6 +196,11 @@ export function parseM3uContent(
     tvgId?: string;
     language?: string;
     country?: string;
+    rightsHolder?: string;
+    licenceType?: string;
+    licenceUrl?: string;
+    territory?: string;
+    expiry?: string;
   } | null = null;
 
   const limit = maxChannels > 0 ? maxChannels : Infinity;
@@ -222,6 +227,11 @@ export function parseM3uContent(
         tvgId: getAttr('tvg-id'),
         language: getAttr('tvg-language'),
         country: getAttr('tvg-country'),
+        rightsHolder: getAttr('rights-holder'),
+        licenceType: getAttr('licence-type'),
+        licenceUrl: getAttr('licence-url'),
+        territory: getAttr('territory'),
+        expiry: getAttr('expiry'),
       };
       continue;
     }
@@ -269,6 +279,22 @@ export function parseM3uContent(
         sourceHint
       );
 
+      const rawLicenceType = (pendingHeader.licenceType || '').trim().toUpperCase();
+      const licenceType: LicenceType | '' =
+        rawLicenceType === 'OWNED' || rawLicenceType === 'PARTNER' || rawLicenceType === 'PUBLIC'
+          ? rawLicenceType
+          : '';
+      const rightsHolder =
+        pendingHeader.rightsHolder !== undefined
+          ? pendingHeader.rightsHolder.trim()
+          : '';
+      const licenceUrl =
+        pendingHeader.licenceUrl !== undefined
+          ? pendingHeader.licenceUrl.trim()
+          : '';
+      const territory = (pendingHeader.territory || meta.country || 'Global').trim();
+      const expiry = (pendingHeader.expiry || '').trim();
+
       channels.push({
         id: `m3u-${channels.length + 1}-${Math.random().toString(36).substring(2, 8)}`,
         channelNumber: 500 + channels.length + 1,
@@ -299,6 +325,11 @@ export function parseM3uContent(
           ageClass: 'ALL',
           editorialClass: 'STANDARD',
         },
+        rightsHolder,
+        licenceType,
+        licenceUrl,
+        territory,
+        expiry,
       });
 
       pendingHeader = null;

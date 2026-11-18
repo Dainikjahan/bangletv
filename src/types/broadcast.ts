@@ -35,6 +35,12 @@ export type FederationRelationship =
 
 export type StreamProtocol = 'hls' | 'dash' | 'youtube' | 'mp4' | 'direct';
 
+export type LicenceType = 'OWNED' | 'PARTNER' | 'PUBLIC';
+
+export type UserRole = 'viewer' | 'contributor' | 'editor' | 'admin';
+
+export type RightsStatus = 'REVIEW' | 'APPROVED';
+
 export type TimeshiftStoragePolicy = 
   | 'IN_MEMORY_EPHEMERAL' 
   | 'CLIENT_INDEXEDDB' 
@@ -107,6 +113,127 @@ export interface BroadcastItem {
   metadataHash?: string;
   federationReversible?: boolean;
   timeshiftPolicy?: TimeshiftPolicy;
+
+  // Rights Ledger Properties
+  rightsHolder: string;
+  licenceType: LicenceType | '';
+  licenceUrl: string;
+  territory: string;
+  expiry: string;
+  rightsStatus?: RightsStatus;
+  requestedLicenceType?: LicenceType;
+}
+
+const BLOCKED_LICENCE_URL_SUBSTRINGS = ['example.com', 'placeholder', 'test'];
+
+export function parseExpiryDate(expiry?: string): Date | null {
+  const trimmed = (expiry || '').trim();
+  if (!trimmed) return null;
+
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]);
+    const day = Number(ymdMatch[3]);
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+export function getExpiryStatus(expiry?: string): {
+  isEmptyOrInvalid: boolean;
+  isExpired: boolean;
+  isWithin30Days: boolean;
+  isRedWarning: boolean;
+} {
+  const expiryDate = parseExpiryDate(expiry);
+  if (!expiryDate) {
+    return {
+      isEmptyOrInvalid: true,
+      isExpired: false,
+      isWithin30Days: false,
+      isRedWarning: false,
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysRemaining = Math.floor((expiryDate.getTime() - today.getTime()) / msPerDay);
+  const isExpired = daysRemaining < 0;
+  const isWithin30Days = daysRemaining >= 0 && daysRemaining <= 30;
+
+  return {
+    isEmptyOrInvalid: false,
+    isExpired,
+    isWithin30Days,
+    isRedWarning: isExpired || isWithin30Days,
+  };
+}
+
+export function isVisibleInPublicGuide(item: BroadcastItem): boolean {
+  if (!item.rightsHolder?.trim()) {
+    return false;
+  }
+
+  const rawLicenceUrl = (item.licenceUrl || '').trim();
+  if (!rawLicenceUrl) {
+    return false;
+  }
+
+  const lowerLicenceUrl = rawLicenceUrl.toLowerCase();
+  if (BLOCKED_LICENCE_URL_SUBSTRINGS.some((token) => lowerLicenceUrl.includes(token))) {
+    return false;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawLicenceUrl);
+  } catch {
+    return false;
+  }
+  if (parsedUrl.protocol !== 'https:') {
+    return false;
+  }
+
+  const expiryDate = parseExpiryDate(item.expiry);
+  if (!expiryDate) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (expiryDate.getTime() < today.getTime()) {
+    return false;
+  }
+
+  if (item.rightsStatus === 'REVIEW') {
+    return false;
+  }
+
+  if (
+    item.licenceType !== 'OWNED' &&
+    item.licenceType !== 'PARTNER' &&
+    item.licenceType !== 'PUBLIC'
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export interface RegulatoryDeclaration {

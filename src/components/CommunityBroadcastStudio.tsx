@@ -34,16 +34,58 @@ import {
   uploadVideoBinary,
   type ComplianceAnalysisResponse,
 } from '../services/complianceGateway';
-import type { BroadcastItem, ContentCategory } from '../types/broadcast';
+import type {
+  BroadcastItem,
+  ContentCategory,
+  LicenceType,
+  RightsStatus,
+  UserRole,
+} from '../types/broadcast';
 import { BENGAL_TV_OFFICIAL_LOGO, EDITORIAL_THUMBNAILS } from '../data/iptvChannels';
+
+export interface BroadcastRightsSubmission {
+  id: string;
+  title: string;
+  category: ContentCategory;
+  location: string;
+  language: string;
+  description: string;
+  videoUrl: string;
+  rightsHolder: string;
+  requestedLicenceType: LicenceType;
+  licenceUrl: string;
+  territory: string;
+  expiry: string;
+  requiresReview: boolean;
+  distributionScope: 'PUBLIC' | 'COMMUNITY_ONLY';
+  authorName: string;
+  communityId: string;
+  communityName: string;
+  complianceScore: number;
+}
+
+export interface BroadcastRightsOverride {
+  rightsHolder?: string;
+  licenceType?: LicenceType | '';
+  licenceUrl?: string;
+  territory?: string;
+  expiry?: string;
+  rightsStatus?: RightsStatus;
+  requestedLicenceType?: LicenceType;
+}
 
 interface CommunityBroadcastStudioProps {
   currentUser: User | null;
   contributorProfile: ContributorProfile | null;
+  userRole: UserRole;
+  rightsOverrides?: Record<string, BroadcastRightsOverride>;
+  pendingReviewItems?: BroadcastItem[];
   onProfileUpdated: (profile: ContributorProfile) => void;
   publicBroadcasts: PublishedBroadcastDoc[];
   communityBroadcasts: PublishedBroadcastDoc[];
   onWatchBroadcast: (item: BroadcastItem) => void;
+  onSubmitBroadcastRights?: (submission: BroadcastRightsSubmission) => void;
+  onApproveReviewItem?: (itemId: string, approvedLicenceType: LicenceType) => void;
 }
 
 interface CommunityDeskPreset {
@@ -76,7 +118,8 @@ const ALLOWED_EDITORIAL_CATEGORIES: Array<{ value: ContentCategory; label: strin
 
 export function mapPublishedDocToBroadcastItem(
   docItem: PublishedBroadcastDoc,
-  indexOffset: number = 0
+  indexOffset: number = 0,
+  rightsOverride?: BroadcastRightsOverride
 ): BroadcastItem {
   const isHls = docItem.videoUrl.includes('.m3u8');
   const ytMatch = docItem.videoUrl.match(
@@ -87,6 +130,22 @@ export function mapPublishedDocToBroadcastItem(
     docItem.category === 'DOCUMENTARY' ||
     docItem.category === 'SCIENCE' ||
     docItem.category === 'EDUCATION';
+
+  const isEditorApproved =
+    rightsOverride?.rightsStatus === 'APPROVED' &&
+    (rightsOverride.licenceType === 'OWNED' ||
+      rightsOverride.licenceType === 'PARTNER' ||
+      rightsOverride.licenceType === 'PUBLIC');
+  const isDirectPublic =
+    rightsOverride?.licenceType === 'PUBLIC' && rightsOverride?.rightsStatus !== 'REVIEW';
+
+  const resolvedLicenceType: LicenceType | '' = isEditorApproved
+    ? rightsOverride!.licenceType!
+    : isDirectPublic
+    ? 'PUBLIC'
+    : '';
+  const resolvedRightsStatus: RightsStatus =
+    isEditorApproved || isDirectPublic ? 'APPROVED' : 'REVIEW';
 
   return {
     id: docItem.id,
@@ -126,16 +185,36 @@ export function mapPublishedDocToBroadcastItem(
       ageClass: 'ALL',
       editorialClass: isDoc ? 'VERIFIED_INVESTIGATIVE' : 'COMMUNITY_DISPATCH',
     },
+    rightsHolder:
+      rightsOverride?.rightsHolder !== undefined
+        ? rightsOverride.rightsHolder
+        : docItem.authorName || docItem.communityName || '',
+    licenceType: resolvedLicenceType,
+    licenceUrl:
+      rightsOverride?.licenceUrl !== undefined
+        ? rightsOverride.licenceUrl
+        : docItem.videoUrl || '',
+    territory:
+      rightsOverride?.territory ??
+      (docItem.distributionScope === 'COMMUNITY_ONLY' ? docItem.location : 'Global'),
+    expiry: rightsOverride?.expiry ?? '2028-12-31',
+    rightsStatus: resolvedRightsStatus,
+    requestedLicenceType: rightsOverride?.requestedLicenceType ?? 'PARTNER',
   };
 }
 
 export default function CommunityBroadcastStudio({
   currentUser,
   contributorProfile,
+  userRole,
+  rightsOverrides,
+  pendingReviewItems = [],
   onProfileUpdated,
   publicBroadcasts,
   communityBroadcasts,
   onWatchBroadcast,
+  onSubmitBroadcastRights,
+  onApproveReviewItem,
 }: CommunityBroadcastStudioProps) {
   // Auth & Profile state
   const [authBusy, setAuthBusy] = useState<boolean>(false);
@@ -154,6 +233,11 @@ export default function CommunityBroadcastStudio({
   const [location, setLocation] = useState<string>('Sundarbans, Bangladesh');
   const [language, setLanguage] = useState<string>('Bengali');
   const [distributionScope, setDistributionScope] = useState<'PUBLIC' | 'COMMUNITY_ONLY'>('PUBLIC');
+  const [requestedLicenceType, setRequestedLicenceType] = useState<LicenceType>('PUBLIC');
+  const [rightsHolder, setRightsHolder] = useState<string>('');
+  const [licenceUrl, setLicenceUrl] = useState<string>('');
+  const [territory, setTerritory] = useState<string>('Global');
+  const [expiry, setExpiry] = useState<string>('2028-12-31');
   const [description, setDescription] = useState<string>('');
   const [transcriptNotes, setTranscriptNotes] = useState<string>('');
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -171,6 +255,11 @@ export default function CommunityBroadcastStudio({
   // Feed Directory state
   const [feedScopeTab, setFeedScopeTab] = useState<'PUBLIC' | 'COMMUNITY_ONLY'>('PUBLIC');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const isEditorOrAdmin = userRole === 'editor' || userRole === 'admin';
+  const requiresEditorReview =
+    !isEditorOrAdmin && (requestedLicenceType === 'OWNED' || requestedLicenceType === 'PARTNER');
+  const canSubmitStudio = Boolean(currentUser && contributorProfile) || userRole !== 'viewer';
 
   useEffect(() => {
     if (contributorProfile) {
@@ -313,7 +402,7 @@ export default function CommunityBroadcastStudio({
   };
 
   const handlePublishBroadcast = async () => {
-    if (!currentUser || !contributorProfile) {
+    if (!canSubmitStudio) {
       setUploadError('Please sign in and save your Contributor Desk profile before publishing.');
       return;
     }
@@ -334,26 +423,62 @@ export default function CommunityBroadcastStudio({
           ? complianceResult.complianceScore
           : Math.max(75, 100 - complianceResult.riskScore);
 
-      await publishVerifiedBroadcast({
-        authorId: currentUser.uid,
-        authorName: contributorProfile.displayName,
-        communityId: contributorProfile.communityId,
-        communityName: contributorProfile.communityName,
-        distributionScope,
+      const authorName =
+        contributorProfile?.displayName ||
+        currentUser?.displayName ||
+        'Bengal TV Contributor';
+      const communityId = contributorProfile?.communityId || 'dhaka-desk';
+      const communityName = contributorProfile?.communityName || 'Dhaka Editorial Desk';
+
+      let submissionId = `studio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+      if (currentUser && contributorProfile) {
+        submissionId = await publishVerifiedBroadcast({
+          authorId: currentUser.uid,
+          authorName,
+          communityId,
+          communityName,
+          distributionScope,
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          location: location.trim(),
+          language: language.trim(),
+          videoUrl: videoUrl.trim(),
+          complianceScore: score,
+          complianceReasoning: complianceResult.reasoning,
+        });
+      }
+
+      onSubmitBroadcastRights?.({
+        id: submissionId,
         title: title.trim(),
-        description: description.trim(),
         category,
         location: location.trim(),
         language: language.trim(),
+        description: description.trim(),
         videoUrl: videoUrl.trim(),
+        rightsHolder: rightsHolder.trim() || authorName,
+        requestedLicenceType,
+        licenceUrl: licenceUrl.trim() || videoUrl.trim(),
+        territory:
+          territory.trim() ||
+          (distributionScope === 'COMMUNITY_ONLY' ? location.trim() : 'Global'),
+        expiry: expiry.trim(),
+        requiresReview: requiresEditorReview,
+        distributionScope,
+        authorName,
+        communityId,
+        communityName,
         complianceScore: score,
-        complianceReasoning: complianceResult.reasoning,
       });
 
       setPublishBanner(
-        distributionScope === 'PUBLIC'
+        requiresEditorReview
+          ? `Submission sent to REVIEW. Contributors cannot set licenceType to ${requestedLicenceType} directly — an Editor must approve before it appears in the public guide.`
+          : distributionScope === 'PUBLIC'
           ? 'Broadcast vetted & published globally on Bengal TV. Viewers worldwide can now tune in.'
-          : `Broadcast vetted & shared exclusively with ${contributorProfile.communityName}.`
+          : `Broadcast vetted & shared exclusively with ${communityName}.`
       );
       setTitle('');
       setDescription('');
@@ -762,6 +887,79 @@ export default function CommunityBroadcastStudio({
 
             <div>
               <label className="block font-semibold text-[#1D1D1F] mb-1">
+                Broadcast Licence Type
+              </label>
+              <select
+                value={requestedLicenceType}
+                onChange={(e) => setRequestedLicenceType(e.target.value as LicenceType)}
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3.5 py-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+              >
+                <option value="PUBLIC">PUBLIC — Open / Free-to-Air Rights</option>
+                <option value="PARTNER">
+                  PARTNER{!isEditorOrAdmin ? ' (Goes to REVIEW · Editor Approval Required)' : ''}
+                </option>
+                <option value="OWNED">
+                  OWNED{!isEditorOrAdmin ? ' (Goes to REVIEW · Editor Approval Required)' : ''}
+                </option>
+              </select>
+              {requiresEditorReview && (
+                <p className="mt-1 text-[11px] text-[#B45309] font-medium">
+                  Contributors cannot set licenceType to {requestedLicenceType} directly. Submission goes to REVIEW until an editor approves it.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#1D1D1F] mb-1">
+                Rights Holder
+              </label>
+              <input
+                type="text"
+                value={rightsHolder}
+                onChange={(e) => setRightsHolder(e.target.value)}
+                maxLength={120}
+                placeholder={contributorProfile?.displayName || 'Correspondent or network rights holder'}
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3.5 py-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#1D1D1F] mb-1">
+                Licence URL (HTTPS)
+              </label>
+              <input
+                type="url"
+                value={licenceUrl}
+                onChange={(e) => setLicenceUrl(e.target.value)}
+                placeholder="https://bangletv.com/rights/dispatch"
+                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3.5 py-2.5 text-xs font-mono text-[#1D1D1F] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#1D1D1F] mb-1">
+                Territory & Expiry Date
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={territory}
+                  onChange={(e) => setTerritory(e.target.value)}
+                  maxLength={60}
+                  placeholder="Global"
+                  className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+                />
+                <input
+                  type="date"
+                  value={expiry}
+                  onChange={(e) => setExpiry(e.target.value)}
+                  className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-xs font-mono text-[#1D1D1F] focus:outline-none focus:border-[#0066CC] focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#1D1D1F] mb-1">
                 Dateline / Field Location
               </label>
               <input
@@ -926,18 +1124,23 @@ export default function CommunityBroadcastStudio({
             <button
               type="button"
               onClick={handlePublishBroadcast}
-              disabled={!currentUser || !contributorProfile || !isApprovalFresh || !videoUrl.trim() || isPublishing}
+              disabled={!canSubmitStudio || !isApprovalFresh || !videoUrl.trim() || isPublishing}
               className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055B3] disabled:bg-[#E5E5EA] disabled:text-[#86868B] text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
             >
               {isPublishing ? (
                 <>
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>Publishing Broadcast...</span>
+                  <span>Submitting Broadcast...</span>
                 </>
-              ) : !currentUser ? (
+              ) : !canSubmitStudio ? (
                 <>
                   <Lock size={14} />
                   <span>Sign In Required to Publish</span>
+                </>
+              ) : requiresEditorReview ? (
+                <>
+                  <ShieldCheck size={15} />
+                  <span>2. Submit {requestedLicenceType} Request to REVIEW</span>
                 </>
               ) : (
                 <>
@@ -951,6 +1154,52 @@ export default function CommunityBroadcastStudio({
           </div>
         </div>
       </div>
+
+      {/* Editor Rights Review Queue (Only visible to editor / admin when REVIEW items exist) */}
+      {isEditorOrAdmin && pendingReviewItems.length > 0 && (
+        <section className="bg-white border border-[#E5E5EA] rounded-2xl p-6 sm:p-8 shadow-xs space-y-4">
+          <div className="border-b border-[#E5E5EA] pb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1D1D1F]">
+                Pending Rights Review Queue ({pendingReviewItems.length})
+              </h2>
+              <p className="text-xs text-[#6E6E73] mt-0.5">
+                Contributor submissions requesting OWNED or PARTNER status remain in REVIEW until approved by an Editor.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {pendingReviewItems.map((item) => {
+              const targetLicence: LicenceType = item.requestedLicenceType || 'PARTNER';
+              return (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="font-bold text-[#1D1D1F] truncate">{item.title}</div>
+                    <div className="text-[#6E6E73]">
+                      Rights Holder: <strong className="text-[#1D1D1F]">{item.rightsHolder || 'Empty'}</strong> · Requested:{' '}
+                      <span className="font-mono font-semibold text-[#B45309]">{targetLicence}</span> · Expiry:{' '}
+                      <span className="font-mono">{item.expiry || 'Empty'}</span>
+                    </div>
+                  </div>
+                  {onApproveReviewItem && (
+                    <button
+                      type="button"
+                      onClick={() => onApproveReviewItem(item.id, targetLicence)}
+                      className="px-3.5 py-2 rounded-lg bg-[#0066CC] hover:bg-[#0055B3] text-white font-semibold text-xs cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      Approve as {targetLicence}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Published Worldwide & Community Broadcasts Directory */}
       <section className="bg-white border border-[#E5E5EA] rounded-2xl p-6 sm:p-8 shadow-xs space-y-5">
@@ -1006,7 +1255,11 @@ export default function CommunityBroadcastStudio({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activeFeedList.map((docItem, idx) => {
               const isAuthor = currentUser?.uid === docItem.authorId;
-              const mappedItem = mapPublishedDocToBroadcastItem(docItem, idx);
+              const mappedItem = mapPublishedDocToBroadcastItem(
+                docItem,
+                idx,
+                rightsOverrides?.[docItem.id]
+              );
               return (
                 <article
                   key={docItem.id}
