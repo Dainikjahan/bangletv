@@ -225,11 +225,9 @@ export default function BreakingNewsTicker() {
 
   const handleStepHeadline = (delta: number) => {
     setIsPaused(true);
-    setFocusedIndex((prev) => {
-      const next = (prev + delta + visibleHeadlines.length) % visibleHeadlines.length;
-      setSelectedItem(visibleHeadlines[next]);
-      return next;
-    });
+    const next = (focusedIndex + delta + visibleHeadlines.length) % visibleHeadlines.length;
+    setFocusedIndex(next);
+    setSelectedItem(visibleHeadlines[next]);
   };
 
   return (

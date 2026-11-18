@@ -8,3 +8,4 @@ coverage/
 !.env.example
 uploads/
 .dockerignore.swp
+firebase-applet-config.json

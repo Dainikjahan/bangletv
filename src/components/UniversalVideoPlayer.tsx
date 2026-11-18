@@ -244,7 +244,17 @@ export default function UniversalVideoPlayer({
     return list;
   }, [channel, getYouTubeId]);
 
-  const currentCandidate: StreamCandidate = streamCandidates[sourceIndex] || streamCandidates[0];
+  const currentCandidate: StreamCandidate =
+    streamCandidates[sourceIndex] || {
+      label: 'Bengal TV Studio Standby Carrier',
+      url: 'canvas-simulator',
+      type: 'canvas',
+    };
+
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     setSourceIndex(0);
@@ -253,13 +263,17 @@ export default function UniversalVideoPlayer({
   }, [channel.id, channel.videoUrl]);
 
   const handleNextCandidate = useCallback(() => {
-    if (streamCandidates.length <= 1) {
-      setIsLoading(false);
-      return;
-    }
-    setSourceIndex((prev) => (prev + 1) % streamCandidates.length);
-    setIsLoading(true);
+    setSourceIndex((prev) => {
+      if (prev >= streamCandidates.length) return prev;
+      return prev + 1;
+    });
   }, [streamCandidates.length]);
+
+  useEffect(() => {
+    if (sourceIndex >= streamCandidates.length) {
+      setIsLoading(false);
+    }
+  }, [sourceIndex, streamCandidates.length]);
 
   const triggerOsd = useCallback(() => {
     setShowOsd(true);
@@ -277,6 +291,9 @@ export default function UniversalVideoPlayer({
   }, [channel.id, triggerOsd]);
 
   const handleRealtimeRefresh = () => {
+    if (sourceIndex >= streamCandidates.length) {
+      setSourceIndex(0);
+    }
     setIsLoading(true);
     setRefreshKey((prev) => prev + 1);
     setSyncFeedback('Live broadcast stream synchronized');
@@ -370,6 +387,7 @@ export default function UniversalVideoPlayer({
     const video = videoRef.current;
     if (!video || (currentCandidate.type !== 'hls' && currentCandidate.type !== 'direct')) return;
 
+    let cancelled = false;
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -389,37 +407,44 @@ export default function UniversalVideoPlayer({
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (cancelled) return;
         setIsLoading(false);
-        if (isPlaying) {
+        if (isPlayingRef.current) {
           video.play().catch(() => {});
         }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
+        if (!cancelled && data.fatal) {
           handleNextCandidate();
         }
       });
     } else {
       video.src = currentCandidate.url;
       video.onloadeddata = () => {
+        if (cancelled) return;
         setIsLoading(false);
-        if (isPlaying) {
+        if (isPlayingRef.current) {
           video.play().catch(() => {});
         }
       };
       video.onerror = () => {
-        handleNextCandidate();
+        if (!cancelled) {
+          handleNextCandidate();
+        }
       };
     }
 
     return () => {
+      cancelled = true;
+      video.onloadeddata = null;
+      video.onerror = null;
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-  }, [currentCandidate, handleNextCandidate, refreshKey]);
+  }, [currentCandidate.url, currentCandidate.type, handleNextCandidate, refreshKey]);
 
   // Studio Standby Canvas Fallback (Draws official Bengal TV emblem)
   useEffect(() => {

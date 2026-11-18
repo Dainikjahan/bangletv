@@ -156,6 +156,7 @@ export default function TvViewerConsole({
 
     return () => {
       unsubscribe();
+      dvrRef.current?.stopCapture();
     };
   }, [
     activeChannel.id,

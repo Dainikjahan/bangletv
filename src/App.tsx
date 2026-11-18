@@ -108,7 +108,7 @@ export default function App() {
   // Subscribe to AI-vetted Community-Scoped Broadcasts for signed-in contributor's desk
   useEffect(() => {
     if (!currentUser || !contributorProfile?.communityId) {
-      setCommunityBroadcasts([]);
+      setCommunityBroadcasts((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     const unsubComm = subscribeCommunityBroadcasts(
@@ -155,6 +155,7 @@ export default function App() {
     const fresh = channels.find((c) => c && c.id === activeChannel.id);
     if (
       fresh &&
+      fresh !== activeChannel &&
       (fresh.youtubeId !== activeChannel.youtubeId ||
         fresh.youtubeChannelId !== activeChannel.youtubeChannelId ||
         fresh.videoUrl !== activeChannel.videoUrl ||

@@ -37,9 +37,8 @@ RUN npm ci --omit=dev
 # Copy compiled frontend from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy server entrypoint and configuration files
-COPY server.ts ./
-COPY firebase-applet-config.json ./
+# Copy server entrypoint and optional configuration files
+COPY server.ts firebase-applet-config.json* ./
 
 # Create uploads directory for runtime video buffering
 RUN mkdir -p /app/uploads

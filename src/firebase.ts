@@ -1,14 +1,16 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  type Auth,
   type User,
 } from 'firebase/auth';
 import {
   getFirestore,
+  initializeFirestore,
   setLogLevel,
   doc,
   getDoc,
@@ -21,20 +23,115 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
+  getDocFromServer,
+  type Firestore,
   type Unsubscribe,
   type Timestamp,
 } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
 import type { ContentCategory, DistributionScope } from './types/broadcast';
+
+interface FirebaseAppletConfig {
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  firestoreDatabaseId?: string;
+}
+
+// Optionally load local firebase-applet-config.json if present without failing Vite builds when deleted/gitignored
+const configModules = import.meta.glob('../firebase-applet-config.json', {
+  eager: true,
+}) as Record<string, { default?: FirebaseAppletConfig }>;
+const firebaseConfigFile: FirebaseAppletConfig =
+  configModules['../firebase-applet-config.json']?.default ?? {};
 
 // Silence internal offline retry and connection polling warnings
 try {
   setLogLevel('silent');
 } catch {}
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+function cleanEnvValue(value: string | undefined): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('YOUR_') || trimmed.startsWith('MY_')) {
+    return '';
+  }
+  return trimmed;
+}
+
+const resolvedFirebaseConfig = {
+  apiKey: cleanEnvValue(import.meta.env.VITE_FIREBASE_API_KEY) || firebaseConfigFile.apiKey || '',
+  authDomain:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) || firebaseConfigFile.authDomain || '',
+  projectId:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_PROJECT_ID) || firebaseConfigFile.projectId || '',
+  storageBucket:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET) ||
+    firebaseConfigFile.storageBucket ||
+    '',
+  messagingSenderId:
+    cleanEnvValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) ||
+    firebaseConfigFile.messagingSenderId ||
+    '',
+  appId: cleanEnvValue(import.meta.env.VITE_FIREBASE_APP_ID) || firebaseConfigFile.appId || '',
+  firestoreDatabaseId:
+    cleanEnvValue(import.meta.env.VITE_FIRESTORE_DATABASE_ID) ||
+    firebaseConfigFile.firestoreDatabaseId ||
+    '',
+};
+
+const isFirebaseConfigured = Boolean(
+  resolvedFirebaseConfig.apiKey && resolvedFirebaseConfig.projectId && resolvedFirebaseConfig.appId
+);
+
+let app: FirebaseApp | null = null;
+export let db: Firestore | null = null;
+export let auth: Auth | null = null;
+
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp({
+      apiKey: resolvedFirebaseConfig.apiKey,
+      authDomain: resolvedFirebaseConfig.authDomain,
+      projectId: resolvedFirebaseConfig.projectId,
+      storageBucket: resolvedFirebaseConfig.storageBucket,
+      messagingSenderId: resolvedFirebaseConfig.messagingSenderId,
+      appId: resolvedFirebaseConfig.appId,
+    });
+    const dbId = resolvedFirebaseConfig.firestoreDatabaseId || undefined;
+    try {
+      db = initializeFirestore(
+        app,
+        { experimentalAutoDetectLongPolling: true },
+        dbId
+      );
+    } catch {
+      db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    }
+    auth = getAuth(app);
+  } catch (err) {
+    console.warn('Firebase initialization skipped:', err);
+    app = null;
+    db = null;
+    auth = null;
+  }
+}
+
+// Test connection on boot without crashing or firing fatal console errors when offline
+async function testConnection() {
+  if (!db) return;
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      isFirestoreConnected = false;
+      console.warn('Firestore operating in offline standby mode; check network or Firebase config if persistence is needed.');
+    }
+  }
+}
+testConnection();
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -73,13 +170,13 @@ export function handleFirestoreError(
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
       providerInfo:
-        auth.currentUser?.providerData?.map((provider) => ({
+        auth?.currentUser?.providerData?.map((provider) => ({
           providerId: provider.providerId,
           email: provider.email,
         })) || [],
@@ -142,19 +239,30 @@ function clampString(raw: string, minLen: number, maxLen: number, fallback: stri
 }
 
 export async function signInWithGoogle(): Promise<User> {
+  if (!auth) {
+    throw new Error(
+      'Firebase Authentication is not configured. Set VITE_FIREBASE_* environment variables or restore firebase-applet-config.json.'
+    );
+  }
   const cred = await signInWithPopup(auth, googleProvider);
   return cred.user;
 }
 
 export async function signOutContributor(): Promise<void> {
+  if (!auth) return;
   await signOut(auth);
 }
 
 export function subscribeAuthState(callback: (user: User | null) => void): Unsubscribe {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
 
 export async function getContributorProfile(uid: string): Promise<ContributorProfile | null> {
+  if (!db) return null;
   const path = `users/${uid}`;
   try {
     const snap = await getDoc(doc(db, 'users', uid));
@@ -176,6 +284,9 @@ export async function upsertContributorProfile(input: {
   isExisting: boolean;
 }): Promise<ContributorProfile> {
   const userPath = `users/${input.uid}`;
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.WRITE, userPath);
+  }
   const safeProfile = {
     uid: input.uid,
     displayName: clampString(input.displayName, 2, 80, 'Bengal TV Correspondent'),
@@ -236,6 +347,9 @@ export async function publishVerifiedBroadcast(input: {
 }): Promise<string> {
   const broadcastId = `bc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const path = `broadcasts/${broadcastId}`;
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.CREATE, path);
+  }
 
   const allowedCats: ContentCategory[] = [
     'NEWS',
@@ -286,23 +400,27 @@ export async function publishVerifiedBroadcast(input: {
   }
 }
 
-export async function updateBroadcastDistributionScope(
+export function updateBroadcastDistributionScope(
   broadcastId: string,
   newScope: Extract<DistributionScope, 'PUBLIC' | 'COMMUNITY_ONLY'>
 ): Promise<void> {
   const path = `broadcasts/${broadcastId}`;
-  try {
-    await updateDoc(doc(db, 'broadcasts', broadcastId), {
-      distributionScope: newScope,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.UPDATE, path);
   }
+  return updateDoc(doc(db, 'broadcasts', broadcastId), {
+    distributionScope: newScope,
+    updatedAt: serverTimestamp(),
+  }).catch((error) => {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  });
 }
 
 export async function deletePublishedBroadcast(broadcastId: string): Promise<void> {
   const path = `broadcasts/${broadcastId}`;
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.DELETE, path);
+  }
   try {
     await deleteDoc(doc(db, 'broadcasts', broadcastId));
   } catch (error) {
@@ -313,6 +431,11 @@ export async function deletePublishedBroadcast(broadcastId: string): Promise<voi
 export function subscribePublicBroadcasts(
   onData: (items: PublishedBroadcastDoc[]) => void
 ): Unsubscribe {
+  if (!db) {
+    isFirestoreConnected = false;
+    onData([]);
+    return () => {};
+  }
   const path = 'broadcasts';
   try {
     const q = query(
@@ -345,6 +468,11 @@ export function subscribeCommunityBroadcasts(
   communityId: string,
   onData: (items: PublishedBroadcastDoc[]) => void
 ): Unsubscribe {
+  if (!db) {
+    isFirestoreConnected = false;
+    onData([]);
+    return () => {};
+  }
   const path = 'broadcasts';
   const safeCommunityId = sanitizeId(communityId, 'global-bengal-desk');
   try {
