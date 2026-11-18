@@ -223,6 +223,81 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "RightsLedgerEntry": {
+      "title": "RightsLedgerEntry",
+      "description": "Broadcast rights ledger record restricted to editor and admin roles for reading and approval.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "rightsHolder": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "licenceType": {
+          "type": "string",
+          "enum": ["", "OWNED", "PARTNER", "PUBLIC"]
+        },
+        "requestedLicenceType": {
+          "type": "string",
+          "enum": ["OWNED", "PARTNER", "PUBLIC"]
+        },
+        "licenceUrl": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "territory": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "expiry": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "rightsStatus": {
+          "type": "string",
+          "enum": ["REVIEW", "APPROVED"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "authorId",
+        "title",
+        "rightsHolder",
+        "licenceType",
+        "requestedLicenceType",
+        "licenceUrl",
+        "territory",
+        "expiry",
+        "rightsStatus",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -237,6 +312,10 @@
     "/broadcasts/{broadcastId}": {
       "schema": "VerifiedBroadcast",
       "description": "Published journalistic news reports and humanitarian documentaries vetted by the AI compliance filter."
+    },
+    "/rights_ledger/{itemId}": {
+      "schema": "RightsLedgerEntry",
+      "description": "Rights Ledger inventory and approval workflow accessible only to editor and admin roles."
     }
   }
 }

@@ -28,6 +28,15 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    function isEditorOrAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.role == 'editor' ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.editor == true ||
+        request.auth.token.admin == true
+      );
+    }
+
     // 2. Entity Validation Blueprints (Auth-First + Anti-Update-Gap)
     function isValidContributorProfile(data) {
       return isSignedIn() &&
@@ -70,7 +79,9 @@ service cloud.firestore {
           'id', 'authorId', 'authorName', 'communityId', 'communityName',
           'distributionScope', 'title', 'description', 'category', 'location',
           'language', 'videoUrl', 'complianceStatus', 'complianceScore',
-          'complianceReasoning', 'createdAt', 'updatedAt'
+          'complianceReasoning', 'createdAt', 'updatedAt',
+          'rightsHolder', 'licenceType', 'requestedLicenceType',
+          'licenceUrl', 'territory', 'expiry', 'rightsStatus'
         ]) &&
         data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
@@ -99,6 +110,42 @@ service cloud.firestore {
         data.complianceStatus == 'APPROVED' &&
         data.complianceScore is number && data.complianceScore >= 70 && data.complianceScore <= 100 &&
         data.complianceReasoning is string && data.complianceReasoning.size() >= 5 && data.complianceReasoning.size() <= 600 &&
+        (!('rightsHolder' in data.keys()) || (data.rightsHolder is string && data.rightsHolder.size() <= 120)) &&
+        (!('licenceType' in data.keys()) || (data.licenceType is string && data.licenceType.size() <= 16 && (data.licenceType == '' || data.licenceType == 'OWNED' || data.licenceType == 'PARTNER' || data.licenceType == 'PUBLIC'))) &&
+        (!('requestedLicenceType' in data.keys()) || (data.requestedLicenceType is string && data.requestedLicenceType.size() <= 16 && (data.requestedLicenceType == 'OWNED' || data.requestedLicenceType == 'PARTNER' || data.requestedLicenceType == 'PUBLIC'))) &&
+        (!('licenceUrl' in data.keys()) || (data.licenceUrl is string && data.licenceUrl.size() <= 600)) &&
+        (!('territory' in data.keys()) || (data.territory is string && data.territory.size() <= 80)) &&
+        (!('expiry' in data.keys()) || (data.expiry is string && data.expiry.size() <= 32)) &&
+        (!('rightsStatus' in data.keys()) || (data.rightsStatus is string && data.rightsStatus.size() <= 16 && (data.rightsStatus == 'REVIEW' || data.rightsStatus == 'APPROVED'))) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidRightsLedgerEntry(data) {
+      return isSignedIn() &&
+        data.keys().hasAll([
+          'id', 'authorId', 'title', 'rightsHolder', 'licenceType',
+          'requestedLicenceType', 'licenceUrl', 'territory', 'expiry',
+          'rightsStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'authorId', 'title', 'rightsHolder', 'licenceType',
+          'requestedLicenceType', 'licenceUrl', 'territory', 'expiry',
+          'rightsStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.rightsHolder is string && data.rightsHolder.size() <= 120 &&
+        data.licenceType is string && data.licenceType.size() <= 16 &&
+        (data.licenceType == '' || data.licenceType == 'OWNED' || data.licenceType == 'PARTNER' || data.licenceType == 'PUBLIC') &&
+        data.requestedLicenceType is string && data.requestedLicenceType.size() <= 16 &&
+        (data.requestedLicenceType == 'OWNED' || data.requestedLicenceType == 'PARTNER' || data.requestedLicenceType == 'PUBLIC') &&
+        data.licenceUrl is string && data.licenceUrl.size() <= 600 &&
+        data.territory is string && data.territory.size() >= 1 && data.territory.size() <= 80 &&
+        data.expiry is string && data.expiry.size() <= 32 &&
+        data.rightsStatus is string && data.rightsStatus.size() <= 16 &&
+        (data.rightsStatus == 'REVIEW' || data.rightsStatus == 'APPROVED') &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
@@ -200,12 +247,18 @@ service cloud.firestore {
         incoming().id == broadcastId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
+        (
+          isEditorOrAdmin() ||
+          (
+            (!('rightsStatus' in incoming().keys()) || incoming().rightsStatus == 'REVIEW') &&
+            (!('licenceType' in incoming().keys()) || (incoming().licenceType != 'OWNED' && incoming().licenceType != 'PARTNER'))
+          )
+        ) &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid));
 
       allow update: if isValidVerifiedBroadcast(incoming()) &&
         isVerifiedUser() &&
         isValidId(broadcastId) &&
-        existing().authorId == request.auth.uid &&
         incoming().id == existing().id &&
         incoming().authorId == existing().authorId &&
         incoming().videoUrl == existing().videoUrl &&
@@ -216,12 +269,71 @@ service cloud.firestore {
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
         (
-          incoming().diff(existing()).affectedKeys().hasOnly(['distributionScope', 'updatedAt'])
+          (
+            isEditorOrAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'rightsHolder', 'licenceType', 'requestedLicenceType',
+              'licenceUrl', 'territory', 'expiry', 'rightsStatus', 'updatedAt'
+            ])
+          ) ||
+          (
+            existing().authorId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['distributionScope', 'updatedAt'])
+          )
         );
 
       allow delete: if isVerifiedUser() &&
         isValidId(broadcastId) &&
         existing().authorId == request.auth.uid;
+    }
+
+    // 6. Rights Ledger Registry (Strictly Editor & Admin Read + Approval Control)
+    match /rights_ledger/{itemId} {
+      allow get: if isEditorOrAdmin() && isValidId(itemId);
+      allow list: if isEditorOrAdmin();
+
+      allow create: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isValidRightsLedgerEntry(incoming()) &&
+        incoming().id == itemId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          isEditorOrAdmin() ||
+          (
+            incoming().authorId == request.auth.uid &&
+            incoming().rightsStatus == 'REVIEW' &&
+            (incoming().licenceType == '' || incoming().licenceType == 'PUBLIC') &&
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          )
+        );
+
+      allow update: if isValidRightsLedgerEntry(incoming()) &&
+        isVerifiedUser() &&
+        isValidId(itemId) &&
+        incoming().id == existing().id &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            isEditorOrAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'rightsHolder', 'licenceType', 'requestedLicenceType',
+              'licenceUrl', 'territory', 'expiry', 'rightsStatus', 'updatedAt'
+            ])
+          ) ||
+          (
+            existing().authorId == request.auth.uid &&
+            incoming().rightsStatus == 'REVIEW' &&
+            incoming().licenceType == existing().licenceType &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'rightsHolder', 'licenceUrl', 'territory', 'expiry', 'rightsStatus', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isEditorOrAdmin() && isValidId(itemId);
     }
   }
 }

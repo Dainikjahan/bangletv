@@ -28,7 +28,13 @@ import {
   type Unsubscribe,
   type Timestamp,
 } from 'firebase/firestore';
-import type { ContentCategory, DistributionScope } from './types/broadcast';
+import type {
+  ContentCategory,
+  DistributionScope,
+  LicenceType,
+  RightsStatus,
+  UserRole,
+} from './types/broadcast';
 
 interface FirebaseAppletConfig {
   apiKey?: string;
@@ -251,6 +257,26 @@ export async function signInWithGoogle(): Promise<User> {
 export async function signOutContributor(): Promise<void> {
   if (!auth) return;
   await signOut(auth);
+}
+
+export async function getUserRoleFromAuth(user: User | null): Promise<UserRole> {
+  if (!user) return 'viewer';
+  try {
+    const tokenResult = await user.getIdTokenResult();
+    const claimRole = tokenResult.claims?.role;
+    if (claimRole === 'admin' || tokenResult.claims?.admin === true) {
+      return 'admin';
+    }
+    if (claimRole === 'editor' || tokenResult.claims?.editor === true) {
+      return 'editor';
+    }
+    if (claimRole === 'contributor') {
+      return 'contributor';
+    }
+    return 'contributor';
+  } catch {
+    return 'contributor';
+  }
 }
 
 export function subscribeAuthState(callback: (user: User | null) => void): Unsubscribe {
@@ -498,6 +524,112 @@ export function subscribeCommunityBroadcasts(
     );
   } catch (err) {
     console.warn(`Unable to attach Firestore community broadcasts listener:`, err);
+    onData([]);
+    return () => {};
+  }
+}
+
+export interface RightsLedgerDoc {
+  id: string;
+  authorId: string;
+  title: string;
+  rightsHolder: string;
+  licenceType: LicenceType | '';
+  requestedLicenceType: LicenceType;
+  licenceUrl: string;
+  territory: string;
+  expiry: string;
+  rightsStatus: RightsStatus;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export async function upsertRightsLedgerEntry(input: {
+  id: string;
+  authorId: string;
+  title: string;
+  rightsHolder: string;
+  licenceType: LicenceType | '';
+  requestedLicenceType: LicenceType;
+  licenceUrl: string;
+  territory: string;
+  expiry: string;
+  rightsStatus: RightsStatus;
+}): Promise<void> {
+  const safeId = sanitizeId(input.id, `rl-${Date.now().toString(36)}`);
+  const path = `rights_ledger/${safeId}`;
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.WRITE, path);
+  }
+
+  const payload = {
+    id: safeId,
+    authorId: input.authorId,
+    title: clampString(input.title, 2, 140, 'Broadcast Item'),
+    rightsHolder: input.rightsHolder.trim().slice(0, 120),
+    licenceType: input.licenceType,
+    requestedLicenceType: input.requestedLicenceType,
+    licenceUrl: input.licenceUrl.trim().slice(0, 600),
+    territory: clampString(input.territory || 'Global', 1, 80, 'Global'),
+    expiry: input.expiry.trim().slice(0, 32),
+    rightsStatus: input.rightsStatus,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  try {
+    await setDoc(doc(db, 'rights_ledger', safeId), payload);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function approveRightsLedgerEntry(
+  itemId: string,
+  approvedLicenceType: LicenceType
+): Promise<void> {
+  const safeId = sanitizeId(itemId);
+  const path = `rights_ledger/${safeId}`;
+  if (!db) {
+    handleFirestoreError(new Error('Firestore is not configured.'), OperationType.UPDATE, path);
+  }
+
+  try {
+    await updateDoc(doc(db, 'rights_ledger', safeId), {
+      licenceType: approvedLicenceType,
+      requestedLicenceType: approvedLicenceType,
+      rightsStatus: 'APPROVED' as const,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export function subscribeRightsLedger(
+  onData: (items: RightsLedgerDoc[]) => void
+): Unsubscribe {
+  if (!db) {
+    isFirestoreConnected = false;
+    onData([]);
+    return () => {};
+  }
+  const path = 'rights_ledger';
+  try {
+    return onSnapshot(
+      collection(db, 'rights_ledger'),
+      (snapshot) => {
+        isFirestoreConnected = true;
+        const docs = snapshot.docs.map((d) => d.data() as RightsLedgerDoc);
+        onData(docs);
+      },
+      (error) => {
+        console.warn(`Firestore rights ledger listener denied or offline (${path}):`, error?.message || error);
+        onData([]);
+      }
+    );
+  } catch (err) {
+    console.warn('Unable to attach Firestore rights ledger listener:', err);
     onData([]);
     return () => {};
   }

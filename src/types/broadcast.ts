@@ -124,7 +124,40 @@ export interface BroadcastItem {
   requestedLicenceType?: LicenceType;
 }
 
-const BLOCKED_LICENCE_URL_SUBSTRINGS = ['example.com', 'placeholder', 'test'];
+function isBlockedLicenceUrl(rawLicenceUrl: string): boolean {
+  const lowerRaw = rawLicenceUrl.trim().toLowerCase();
+  if (!lowerRaw) return true;
+
+  if (lowerRaw === 'test' || lowerRaw === 'placeholder' || lowerRaw === 'example') {
+    return true;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawLicenceUrl.trim());
+  } catch {
+    return true;
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
+    return true;
+  }
+
+  const host = parsedUrl.hostname.toLowerCase();
+  if (host === 'example.com' || host.endsWith('.example.com')) {
+    return true;
+  }
+
+  const pathSegments = parsedUrl.pathname
+    .toLowerCase()
+    .split('/')
+    .filter(Boolean);
+  if (pathSegments.some((segment) => segment === 'test' || segment === 'placeholder')) {
+    return true;
+  }
+
+  return false;
+}
 
 export function parseExpiryDate(expiry?: string): Date | null {
   const trimmed = (expiry || '').trim();
@@ -191,22 +224,7 @@ export function isVisibleInPublicGuide(item: BroadcastItem): boolean {
   }
 
   const rawLicenceUrl = (item.licenceUrl || '').trim();
-  if (!rawLicenceUrl) {
-    return false;
-  }
-
-  const lowerLicenceUrl = rawLicenceUrl.toLowerCase();
-  if (BLOCKED_LICENCE_URL_SUBSTRINGS.some((token) => lowerLicenceUrl.includes(token))) {
-    return false;
-  }
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(rawLicenceUrl);
-  } catch {
-    return false;
-  }
-  if (parsedUrl.protocol !== 'https:') {
+  if (!rawLicenceUrl || isBlockedLicenceUrl(rawLicenceUrl)) {
     return false;
   }
 

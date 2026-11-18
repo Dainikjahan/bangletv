@@ -259,7 +259,7 @@ export default function CommunityBroadcastStudio({
   const isEditorOrAdmin = userRole === 'editor' || userRole === 'admin';
   const requiresEditorReview =
     !isEditorOrAdmin && (requestedLicenceType === 'OWNED' || requestedLicenceType === 'PARTNER');
-  const canSubmitStudio = Boolean(currentUser && contributorProfile) || userRole !== 'viewer';
+  const canSubmitStudio = Boolean(currentUser && (contributorProfile || isEditorOrAdmin));
 
   useEffect(() => {
     if (contributorProfile) {

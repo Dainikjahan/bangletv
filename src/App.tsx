@@ -14,11 +14,16 @@ import {
 } from './data/iptvChannels';
 import {
   subscribeAuthState,
+  getUserRoleFromAuth,
   getContributorProfile,
   subscribePublicBroadcasts,
   subscribeCommunityBroadcasts,
+  subscribeRightsLedger,
+  upsertRightsLedgerEntry,
+  approveRightsLedgerEntry,
   type ContributorProfile,
   type PublishedBroadcastDoc,
+  type RightsLedgerDoc,
 } from './firebase';
 import TvViewerConsole from './components/TvViewerConsole';
 import EpgGrid from './components/EpgGrid';
@@ -37,53 +42,9 @@ type NavigationTab = 'tv' | 'studio' | 'charter' | 'rights-ledger';
 const STORAGE_KEY_CHANNELS = 'bengaltv_editorial_channels_v6';
 const STORAGE_KEY_RIGHTS_OVERRIDES = 'bengaltv_rights_overrides_v1';
 const STORAGE_KEY_STUDIO_SUBMISSIONS = 'bengaltv_studio_submissions_v1';
-const STORAGE_KEY_ROLE = 'bengaltv_user_role';
-
-function isValidRole(value: string | null | undefined): value is UserRole {
-  return (
-    value === 'viewer' ||
-    value === 'contributor' ||
-    value === 'editor' ||
-    value === 'admin'
-  );
-}
-
-function resolveUserRole(user: User | null): UserRole {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const queryRole = params.get('role');
-    if (isValidRole(queryRole)) {
-      return queryRole;
-    }
-    const storedRole = localStorage.getItem(STORAGE_KEY_ROLE);
-    if (isValidRole(storedRole)) {
-      return storedRole;
-    }
-  } catch {}
-
-  if (!user) return 'viewer';
-  return 'contributor';
-}
-
-function getRequestedInitialTab(): NavigationTab {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const queryTab = params.get('tab');
-    const hash = window.location.hash.replace(/^#/, '');
-    const candidate = queryTab || hash;
-    if (
-      candidate === 'studio' ||
-      candidate === 'charter' ||
-      candidate === 'rights-ledger'
-    ) {
-      return candidate;
-    }
-  } catch {}
-  return 'tv';
-}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavigationTab>(getRequestedInitialTab);
+  const [activeTab, setActiveTab] = useState<NavigationTab>('tv');
 
   // Core + user-imported M3U channels (free of legacy Indian channel overrides)
   const [baseChannels, setBaseChannels] = useState<BroadcastItem[]>(() => {
@@ -175,26 +136,19 @@ export default function App() {
     return [];
   });
 
-  // Firebase Auth & Contributor Profile state
+  // Firebase Auth, Custom Claims Role & Contributor Profile state
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('viewer');
   const [contributorProfile, setContributorProfile] = useState<ContributorProfile | null>(null);
   const [publicBroadcasts, setPublicBroadcasts] = useState<PublishedBroadcastDoc[]>([]);
   const [communityBroadcasts, setCommunityBroadcasts] = useState<PublishedBroadcastDoc[]>([]);
+  const [firestoreRightsDocs, setFirestoreRightsDocs] = useState<RightsLedgerDoc[]>([]);
 
-  const userRole = useMemo<UserRole>(() => resolveUserRole(currentUser), [currentUser]);
   const canAccessRightsLedger = userRole === 'admin' || userRole === 'editor';
 
   const redirectHome = useCallback(() => {
     setActiveTab('tv');
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get('tab') === 'rights-ledger' || url.hash === '#rights-ledger') {
-        url.searchParams.delete('tab');
-        if (url.hash === '#rights-ledger') url.hash = '';
-        window.history.replaceState({}, '', url.toString());
-      }
-    } catch {}
   }, []);
 
   useEffect(() => {
@@ -206,8 +160,10 @@ export default function App() {
   useEffect(() => {
     const unsubAuth = subscribeAuthState(async (user) => {
       setCurrentUser(user);
-      setIsAuthReady(true);
       if (user) {
+        const resolvedRole = await getUserRoleFromAuth(user);
+        setUserRole(resolvedRole);
+        setIsAuthReady(true);
         try {
           const profile = await getContributorProfile(user.uid);
           setContributorProfile(profile);
@@ -215,8 +171,11 @@ export default function App() {
           setContributorProfile(null);
         }
       } else {
+        setUserRole('viewer');
+        setIsAuthReady(true);
         setContributorProfile(null);
         setCommunityBroadcasts([]);
+        setFirestoreRightsDocs([]);
       }
     });
     return () => unsubAuth();
@@ -246,6 +205,18 @@ export default function App() {
     return () => unsubComm();
   }, [currentUser, contributorProfile?.communityId]);
 
+  // Subscribe to Rights Ledger Firestore collection strictly for editor & admin roles
+  useEffect(() => {
+    if (!isAuthReady || !currentUser || !canAccessRightsLedger) {
+      setFirestoreRightsDocs((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    const unsubLedger = subscribeRightsLedger((docs) => {
+      setFirestoreRightsDocs(docs);
+    });
+    return () => unsubLedger();
+  }, [isAuthReady, currentUser, canAccessRightsLedger]);
+
   const handleSubmitBroadcastRights = useCallback(
     (submission: BroadcastRightsSubmission) => {
       const enforceReview =
@@ -255,13 +226,18 @@ export default function App() {
           submission.requestedLicenceType === 'OWNED' ||
           submission.requestedLicenceType === 'PARTNER');
 
+      const resolvedRightsStatus = enforceReview ? ('REVIEW' as const) : ('APPROVED' as const);
+      const resolvedLicenceType: LicenceType | '' = enforceReview
+        ? ''
+        : submission.requestedLicenceType;
+
       const override: BroadcastRightsOverride = {
         rightsHolder: submission.rightsHolder,
-        licenceType: enforceReview ? '' : submission.requestedLicenceType,
+        licenceType: resolvedLicenceType,
         licenceUrl: submission.licenceUrl,
         territory: submission.territory,
         expiry: submission.expiry,
-        rightsStatus: enforceReview ? 'REVIEW' : 'APPROVED',
+        rightsStatus: resolvedRightsStatus,
         requestedLicenceType: submission.requestedLicenceType,
       };
 
@@ -273,7 +249,20 @@ export default function App() {
         return next;
       });
 
-      if (!currentUser) {
+      if (currentUser) {
+        upsertRightsLedgerEntry({
+          id: submission.id,
+          authorId: currentUser.uid,
+          title: submission.title,
+          rightsHolder: submission.rightsHolder,
+          licenceType: resolvedLicenceType,
+          requestedLicenceType: submission.requestedLicenceType,
+          licenceUrl: submission.licenceUrl,
+          territory: submission.territory,
+          expiry: submission.expiry,
+          rightsStatus: resolvedRightsStatus,
+        }).catch(() => {});
+      } else {
         const isHls = submission.videoUrl.includes('.m3u8');
         const newItem: BroadcastItem = {
           id: submission.id,
@@ -301,11 +290,11 @@ export default function App() {
           communityName: submission.communityName,
           distributionScope: submission.distributionScope,
           rightsHolder: submission.rightsHolder,
-          licenceType: enforceReview ? '' : submission.requestedLicenceType,
+          licenceType: resolvedLicenceType,
           licenceUrl: submission.licenceUrl,
           territory: submission.territory,
           expiry: submission.expiry,
-          rightsStatus: enforceReview ? 'REVIEW' : 'APPROVED',
+          rightsStatus: resolvedRightsStatus,
           requestedLicenceType: submission.requestedLicenceType,
         };
         setLocalStudioSubmissions((prev) => {
@@ -323,6 +312,10 @@ export default function App() {
   const handleApproveReviewItem = useCallback(
     (itemId: string, approvedLicenceType: LicenceType) => {
       if (userRole !== 'editor' && userRole !== 'admin') return;
+
+      if (currentUser) {
+        approveRightsLedgerEntry(itemId, approvedLicenceType).catch(() => {});
+      }
 
       setRightsOverrides((prev) => {
         const existing = prev[itemId] || {};
@@ -358,27 +351,43 @@ export default function App() {
         return next;
       });
     },
-    [userRole]
+    [userRole, currentUser]
   );
 
-  // Merge AI-approved global & community uploads seamlessly into playable channel lineup
+  // Merge AI-approved global & community uploads and Firestore rights records seamlessly
+  const mergedRightsOverrides = useMemo<Record<string, BroadcastRightsOverride>>(() => {
+    const merged: Record<string, BroadcastRightsOverride> = { ...rightsOverrides };
+    for (const rl of firestoreRightsDocs) {
+      merged[rl.id] = {
+        rightsHolder: rl.rightsHolder,
+        licenceType: rl.licenceType,
+        licenceUrl: rl.licenceUrl,
+        territory: rl.territory,
+        expiry: rl.expiry,
+        rightsStatus: rl.rightsStatus,
+        requestedLicenceType: rl.requestedLicenceType,
+      };
+    }
+    return merged;
+  }, [rightsOverrides, firestoreRightsDocs]);
+
   const channels = useMemo<BroadcastItem[]>(() => {
     const uploadedDocsMap = new Map<string, PublishedBroadcastDoc>();
     publicBroadcasts.forEach((doc) => uploadedDocsMap.set(doc.id, doc));
     communityBroadcasts.forEach((doc) => uploadedDocsMap.set(doc.id, doc));
 
     const uploadedItems = Array.from(uploadedDocsMap.values()).map((doc, idx) =>
-      mapPublishedDocToBroadcastItem(doc, idx + 1, rightsOverrides[doc.id])
+      mapPublishedDocToBroadcastItem(doc, idx + 1, mergedRightsOverrides[doc.id])
     );
     const localItems = localStudioSubmissions.map((item) => {
-      const ov = rightsOverrides[item.id];
+      const ov = mergedRightsOverrides[item.id];
       return ov ? { ...item, ...ov } : item;
     });
 
     const mergedExtra = [...localItems, ...uploadedItems];
     if (mergedExtra.length === 0) return baseChannels;
     return [baseChannels[0], ...mergedExtra, ...baseChannels.slice(1)];
-  }, [baseChannels, publicBroadcasts, communityBroadcasts, localStudioSubmissions, rightsOverrides]);
+  }, [baseChannels, publicBroadcasts, communityBroadcasts, localStudioSubmissions, mergedRightsOverrides]);
 
   const pendingReviewItems = useMemo<BroadcastItem[]>(
     () => channels.filter((ch) => ch.rightsStatus === 'REVIEW'),
@@ -661,7 +670,7 @@ export default function App() {
             currentUser={currentUser}
             contributorProfile={contributorProfile}
             userRole={userRole}
-            rightsOverrides={rightsOverrides}
+            rightsOverrides={mergedRightsOverrides}
             pendingReviewItems={pendingReviewItems}
             onProfileUpdated={(p) => setContributorProfile(p)}
             publicBroadcasts={publicBroadcasts}
